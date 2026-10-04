@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Révisions NSI, programme de Première</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="NSI">
+<meta name="theme-color" content="#F6F8FC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1526" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -215,6 +222,17 @@ input.answer:disabled { opacity: .8; }
 .recap .ko .mark { color: var(--ko); }
 .recap .th { color: var(--ink-2); font-size: .82rem; font-weight: 700; }
 
+/* Compte et suivi */
+.login { display: grid; gap: 12px; max-width: 360px; margin-top: 12px; }
+.login label { display: grid; gap: 4px; font-weight: 700; font-size: .9rem; color: var(--ink-2); }
+.login input { font: 1rem/1.2 var(--f-body); color: var(--ink); min-height: 46px; padding: 0 12px; background: var(--sheet); border: 2px solid var(--line); border-radius: 6px; }
+.login input:focus { outline: none; border-color: var(--pen); }
+.login .btn { justify-self: start; }
+.login-error { margin: 0; color: var(--ko); font-weight: 700; }
+.login-error:empty { display: none; }
+.follow-card + .follow-card { margin-top: 14px; }
+.follow-card .stats { margin-bottom: 14px; }
+
 footer { padding: 28px 0 48px; border-top: 1px dashed var(--line); color: var(--ink-2); font-size: .92rem; }
 footer p { max-width: 40em; }
 
@@ -232,7 +250,7 @@ footer p { max-width: 40em; }
   .cal { grid-template-columns: repeat(7, 30px); gap: 5px; }
   .cal .day { width: 30px; height: 30px; }
   .recap li { grid-template-columns: 20px minmax(0, 1fr); }
-  .recap .th { grid-column: 2; }
+  .recap .th, .recap li > :last-child { grid-column: 2; }
   .btn { padding: 0 13px; }
 }
 </style>
@@ -250,7 +268,8 @@ footer p { max-width: 40em; }
   <footer class="row">
     <div></div>
     <div class="body">
-      <p id="sync-note">Ta progression est enregistrée dans ce navigateur, sur cet appareil.</p>
+      <p>Ta progression est enregistrée sur cet appareil, et aussi en ligne quand tu es connecté.</p>
+      <p id="install-tip">Tu peux installer cette page comme une appli, utilisable même sans connexion. Sur iPhone : bouton Partager, puis «&nbsp;Sur l'écran d'accueil&nbsp;». Sur Android : menu ⋮, puis «&nbsp;Installer l'application&nbsp;». Sur iPhone, l'appli installée ne voit pas la progression faite dans Safari : connecte-toi dedans pour la retrouver.</p>
       <p>Le Python de cette page est une version simplifiée, suffisante pour ces exercices (fonctions, boucles, listes, chaînes, dictionnaires, tuples, module <code>math</code>). Pour aller plus loin, utilise Thonny ou Capytale.</p>
       <button type="button" class="btn link" id="reset-all">Remettre la progression à zéro</button>
     </div>
@@ -320,7 +339,14 @@ const PyInterp = (() => {
   const isNum = v => typeof v === 'number' || typeof v === 'boolean' || v instanceof PyFloat;
   const numVal = v => typeof v === 'number' ? v : typeof v === 'boolean' ? (v ? 1 : 0) : v.v;
   const isInt = v => typeof v === 'number' || typeof v === 'boolean';
-  const mk = (x, f) => f ? new PyFloat(x) : x;
+  // Les entiers sont des nombres JavaScript : au-delà de 2⁵³ ils deviendraient faux sans prévenir.
+  const BIG_INT_MSG = 'entier trop grand pour le Python de cette page (plus de 9 007 199 254 740 991)';
+  const safeInt = x => {
+    if (Number.isSafeInteger(x)) return x;
+    if (Number.isNaN(x)) throw E('ValueError', 'cannot convert float NaN to integer');
+    throw E('OverflowError', Number.isFinite(x) ? BIG_INT_MSG : 'cannot convert float infinity to integer');
+  };
+  const mk = (x, f) => f ? new PyFloat(x) : safeInt(x);
 
   function floatRepr(x) {
     if (Number.isNaN(x)) return 'nan';
@@ -510,7 +536,7 @@ const PyInterp = (() => {
           let r = x % y; if (r !== 0 && (r < 0) !== (y < 0)) r += y; return mk(r, f);
         }
         case '**':
-          if (!f && y >= 0) return Math.pow(x, y);
+          if (!f && y >= 0) return safeInt(Math.pow(x, y));
           if (x === 0 && y < 0) throw E('ZeroDivisionError', 'zero to a negative power');
           return new PyFloat(Math.pow(x, y));
       }
@@ -604,6 +630,7 @@ const PyInterp = (() => {
         else if (/^0[oO]/.test(t)) v = parseInt(t.slice(2), 8);
         else if (/[.eE]/.test(t)) { v = parseFloat(t); isF = true; }
         else v = parseInt(t, 10);
+        if (!isF && !Number.isSafeInteger(v)) throw new PyError('OverflowError', BIG_INT_MSG, line);
         push('NUMBER', { v, isF });
         i += m[0].length;
         if (i < n && ID_START.test(src[i])) throw new PyError('SyntaxError', 'invalid decimal literal', line);
@@ -1309,9 +1336,9 @@ const PyInterp = (() => {
         if (!re.test(t)) throw E('ValueError', 'invalid literal for int() with base ' + base + ': ' + strRepr(v));
         const neg = t[0] === '-'; const body = t.replace(/^[+-]/, '').replace(/^0[bBxXoO]/, '');
         const r = parseInt(body, base); if (Number.isNaN(r)) throw E('ValueError', 'invalid literal for int() with base ' + base + ': ' + strRepr(v));
-        return neg ? -r : r;
+        return safeInt(neg ? -r : r);
       }
-      if (isNum(v)) { const x = numVal(v); if (!Number.isFinite(x)) throw E('OverflowError', 'cannot convert float infinity to integer'); return Math.trunc(x); }
+      if (isNum(v)) return safeInt(Math.trunc(numVal(v)));
       throw E('TypeError', "int() argument must be a string or a number, not '" + typeName(v) + "'");
     }, 'int');
     def('float', a => {
@@ -1340,7 +1367,7 @@ const PyInterp = (() => {
     def('round', a => {
       argc('round', a, 1, 2); const v = a[0]; if (!isNum(v)) throw E('TypeError', "type " + typeName(v) + " doesn't define __round__ method");
       const x = numVal(v);
-      if (a.length < 2 || a[1] === null) return roundHalfEven(x);
+      if (a.length < 2 || a[1] === null) return safeInt(roundHalfEven(x));
       const nd = numVal(a[1]); const f = Math.pow(10, nd);
       let r;
       if (nd < 0 || nd > 60 || !Number.isFinite(x)) r = roundHalfEven(x * f) / f;
@@ -1385,16 +1412,16 @@ const PyInterp = (() => {
   const MATH = new PyModule('math', {
     sqrt: new PyBuiltin('sqrt', a => { argc('sqrt', a, 1, 1); const x = numVal(a[0]); if (x < 0) throw E('ValueError', 'math domain error'); return new PyFloat(Math.sqrt(x)); }),
     isqrt: new PyBuiltin('isqrt', a => { argc('isqrt', a, 1, 1); const x = numVal(a[0]); if (x < 0) throw E('ValueError', 'isqrt() argument must be nonnegative'); let r = Math.floor(Math.sqrt(x)); while (r * r > x) r--; while ((r + 1) * (r + 1) <= x) r++; return r; }),
-    floor: new PyBuiltin('floor', a => { argc('floor', a, 1, 1); return Math.floor(numVal(a[0])); }),
-    ceil: new PyBuiltin('ceil', a => { argc('ceil', a, 1, 1); return Math.ceil(numVal(a[0])); }),
-    trunc: new PyBuiltin('trunc', a => { argc('trunc', a, 1, 1); return Math.trunc(numVal(a[0])); }),
+    floor: new PyBuiltin('floor', a => { argc('floor', a, 1, 1); return safeInt(Math.floor(numVal(a[0]))); }),
+    ceil: new PyBuiltin('ceil', a => { argc('ceil', a, 1, 1); return safeInt(Math.ceil(numVal(a[0]))); }),
+    trunc: new PyBuiltin('trunc', a => { argc('trunc', a, 1, 1); return safeInt(Math.trunc(numVal(a[0]))); }),
     fabs: new PyBuiltin('fabs', a => { argc('fabs', a, 1, 1); return new PyFloat(Math.abs(numVal(a[0]))); }),
     pow: new PyBuiltin('pow', a => { argc('pow', a, 2, 2); return new PyFloat(Math.pow(numVal(a[0]), numVal(a[1]))); }),
     log: new PyBuiltin('log', a => { argc('log', a, 1, 2); const x = numVal(a[0]); if (x <= 0) throw E('ValueError', 'math domain error'); return new PyFloat(a.length > 1 ? Math.log(x) / Math.log(numVal(a[1])) : Math.log(x)); }),
     log2: new PyBuiltin('log2', a => { argc('log2', a, 1, 1); return new PyFloat(Math.log2(numVal(a[0]))); }),
     log10: new PyBuiltin('log10', a => { argc('log10', a, 1, 1); return new PyFloat(Math.log10(numVal(a[0]))); }),
     gcd: new PyBuiltin('gcd', a => { let g = 0; for (const v of a) { let x = Math.abs(numVal(v)); while (x) { [g, x] = [x, g % x]; } } return g; }),
-    factorial: new PyBuiltin('factorial', a => { argc('factorial', a, 1, 1); let r = 1; for (let i = 2; i <= numVal(a[0]); i++) r *= i; return r; }),
+    factorial: new PyBuiltin('factorial', a => { argc('factorial', a, 1, 1); let r = 1; for (let i = 2; i <= numVal(a[0]); i++) r *= i; return safeInt(r); }),
     pi: new PyFloat(Math.PI), e: new PyFloat(Math.E), inf: new PyFloat(Infinity),
   });
 
@@ -2308,6 +2335,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
     RecursionError: "Trop d'appels récursifs : le cas de base est-il bien atteint ?",
     TimeoutError: "Le programme ne s'arrête pas ou est trop lent : une boucle while dont la condition reste toujours vraie ?",
     OutputLimit: "Le programme affiche trop de texte : un print dans une boucle qui ne s'arrête pas ?",
+    OverflowError: "Le Python de cette page ne calcule exactement qu'avec des entiers de 16 chiffres au plus. Le vrai Python n'a pas cette limite : essaie ce code dans Thonny ou Capytale.",
     ModuleNotFoundError: "Seul le module math est disponible ici.",
     ImportError: "Seul le module math est disponible ici.",
   };
@@ -2320,78 +2348,180 @@ if (typeof module !== 'undefined') module.exports = BANK;
 
   // ---------- État ----------
   const KEY = 'nsi-revisions-v1';
-  const blank = () => ({ v: 1, items: {}, days: {}, code: {}, session: null, updatedAt: 0 });
+  const blank = () => ({ v: 1, items: {}, days: {}, code: {}, session: null, resetAt: 0 });
   function load() {
     try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1) return Object.assign(blank(), s); } catch (e) { /* stockage indisponible */ }
     return blank();
   }
   let state = load();
   function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignoré */ } }
-  function commit() { state.updatedAt = Date.now(); saveLocal(); cloudPush(); }
+  function commit() { saveLocal(); syncSoon(); }
   let draftTimer = null;
   function saveDraftSoon() { clearTimeout(draftTimer); draftTimer = setTimeout(saveLocal, 400); }
 
-  // ---------- Synchronisation avec le compte (si la page en a la possibilité) ----------
-  const cloud = { ref: null, busy: false, again: false, fails: 0 };
-  function setSyncNote(on) {
-    const n = document.getElementById('sync-note');
-    n.textContent = on ? 'Ta progression est enregistrée avec ton compte : tu la retrouves sur tes autres appareils.' : 'Ta progression est enregistrée dans ce navigateur, sur cet appareil.';
+  // ---------- Sauvegarde en ligne (Supabase) ----------
+  // La clé publishable est faite pour être publique : la base n'autorise un compte connecté
+  // qu'à lire et écrire sa propre progression (voir supabase.sql). Le navigateur reste la
+  // sauvegarde principale ; le compte en garde une copie et synchronise les appareils.
+  const SUPABASE_URL = 'https://lytjpibmwgecyuaeptoh.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Q-LnNjgZrvNvv0TKPUvFKQ_uAj87ZQy';
+  const AUTH_KEY = 'nsi-auth-v1';
+  // Identifiant de cet appareil : les réponses du jour sont comptées par appareil puis additionnées,
+  // pour que deux appareils utilisés le même jour ne s'écrasent pas.
+  let DEVICE = 'local';
+  try { DEVICE = localStorage.getItem('nsi-device-v1') || Math.random().toString(36).slice(2, 10); localStorage.setItem('nsi-device-v1', DEVICE); } catch (e) { /* ignoré */ }
+  let auth = null;
+  try { auth = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { auth = null; }
+  function setAuth(a) { auth = a; try { if (a) localStorage.setItem(AUTH_KEY, JSON.stringify(a)); else localStorage.removeItem(AUTH_KEY); } catch (e) { /* ignoré */ } }
+  const cloud = { busy: false, again: false, timer: null, last: 0, error: null, notice: '', followed: null, following: false, followError: null };
+
+  class CloudError extends Error {
+    constructor(kind, status, data) { super(kind + (status ? ' ' + status : '')); this.kind = kind; this.status = status || 0; this.data = data || null; }
   }
-  function mergeProgress(remote) {
-    let changed = false;
-    const items = remote.items || {}, days = remote.days || {};
-    for (const id in items) {
-      const a = state.items[id], b = items[id];
-      if (b && BY_ID[id] && (!a || (b.t || 0) > (a.t || 0))) { state.items[id] = b; changed = true; }
-    }
-    for (const d in days) {
-      const a = state.days[d] || { n: 0, ok: 0, done: false }, b = days[d] || {};
-      const m = { n: Math.max(a.n || 0, b.n || 0), ok: Math.max(a.ok || 0, b.ok || 0), done: !!(a.done || b.done) };
-      if (m.n !== a.n || m.ok !== a.ok || m.done !== a.done) { state.days[d] = m; changed = true; }
-    }
-    return changed;
-  }
-  async function cloudInit() {
-    if (!window.claude || typeof window.claude.use !== 'function') return;
+  async function request(path, opts, bearer) {
+    let res, data = null;
     try {
-      const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
-      if (!db || !user) return;
-      const uid = await user.id();
-      if (!uid) return;
-      const ref = db.doc('data/users/' + uid + '/progress');
-      const snap = await ref.get();
-      if (snap.exists) {
-        let remote = null;
-        try { remote = JSON.parse((snap.data() || {}).json || 'null'); } catch (e) { remote = null; }
-        if (remote && mergeProgress(remote)) { saveLocal(); if (view === 'home') renderHome(); }
-      }
-      cloud.ref = ref;
-      setSyncNote(true);
-      cloudPush();
-    } catch (e) { cloud.ref = null; setSyncNote(false); }
+      res = await fetch(SUPABASE_URL + path, {
+        method: opts.method || 'GET', cache: 'no-store',
+        headers: Object.assign({ apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, bearer ? { Authorization: 'Bearer ' + bearer } : {}, opts.headers),
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+      });
+      const text = await res.text();
+      try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+    } catch (e) { throw new CloudError('offline'); }
+    if (!res.ok) throw new CloudError('http', res.status, data);
+    return data;
   }
-  async function cloudPush() {
-    if (!cloud.ref) return;
+  const sessionFrom = r => ({ access: r.access_token, refresh: r.refresh_token, exp: r.expires_at || Math.floor(Date.now() / 1000) + r.expires_in, id: r.user.id, email: r.user.email });
+  let refreshing = null;
+  function accessToken() {
+    if (!auth) return Promise.reject(new CloudError('auth'));
+    if (auth.exp - 60 > Date.now() / 1000) return Promise.resolve(auth.access);
+    if (!refreshing) {
+      refreshing = request('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: auth.refresh } })
+        .then(r => { setAuth(sessionFrom(r)); return auth.access; })
+        .catch(e => {
+          if (e.kind === 'http' && e.status >= 400 && e.status < 500 && e.status !== 429) { setAuth(null); cloud.notice = 'Ta session a expiré : reconnecte-toi.'; throw new CloudError('auth'); }
+          throw e;
+        })
+        .finally(() => { refreshing = null; });
+    }
+    return refreshing;
+  }
+  async function api(path, opts = {}, retried = false) {
+    const token = await accessToken();
+    try { return await request('/rest/v1/' + path, opts, token); }
+    catch (e) {
+      // Jeton refusé (horloge de l'appareil décalée, session révoquée...) : on le renouvelle une fois.
+      if (e.status === 401 && !retried && auth) { auth.exp = 0; return api(path, opts, true); }
+      throw e;
+    }
+  }
+  async function signIn(email, password) {
+    const r = await request('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } });
+    setAuth(sessionFrom(r));
+    cloud.notice = ''; cloud.error = null; cloud.last = 0;
+    refreshCloud();
+  }
+  function signOut() {
+    const a = auth;
+    setAuth(null);
+    cloud.error = null; cloud.last = 0; cloud.notice = ''; cloud.followed = null; cloud.followError = null;
+    clearTimeout(cloud.timer);
+    if (a) request('/auth/v1/logout?scope=local', { method: 'POST' }, a.access).catch(() => {});
+  }
+
+  // Fusion de deux progressions : pour chaque question, la réponse la plus récente gagne ;
+  // pour chaque jour, on garde le plus grand compteur de chaque appareil, puis on additionne.
+  // Une remise à zéro (resetAt) efface tout ce qui lui est antérieur, y compris sur les autres appareils.
+  const progressOf = s => ({ items: s.items, days: s.days, resetAt: s.resetAt || 0 });
+  // Compteurs d'un jour par appareil : { appareil: [réponses, réussies] }. Les jours enregistrés
+  // avant ce découpage sont rangés sous '?'.
+  const dayCounts = r => r.by || (r.n ? { '?': [r.n, r.ok || 0] } : {});
+  function sumDay(d) {
+    d.n = 0; d.ok = 0;
+    for (const dev in d.by) { d.n += d.by[dev][0]; d.ok += d.by[dev][1]; }
+    return d;
+  }
+  function mergeProgress(a, b) {
+    const resetAt = Math.max(a.resetAt || 0, b.resetAt || 0);
+    const resetDay = resetAt ? ymd(new Date(resetAt)) : '';
+    const items = {}, days = {};
+    for (const src of [a.items || {}, b.items || {}]) for (const id in src) {
+      const r = src[id];
+      if (r && (r.t || 0) > resetAt && (!items[id] || r.t > items[id].t)) items[id] = r;
+    }
+    for (const src of [a.days || {}, b.days || {}]) for (const d in src) {
+      if (d < resetDay) continue;
+      const r = src[d] || {}, m = days[d] || { n: 0, ok: 0, done: false, by: {} };
+      const by = dayCounts(r);
+      for (const dev in by) { const x = m.by[dev] || [0, 0]; m.by[dev] = [Math.max(x[0], by[dev][0]), Math.max(x[1], by[dev][1])]; }
+      m.done = m.done || !!r.done;
+      days[d] = m;
+    }
+    for (const d in days) sumDay(days[d]);
+    return { items, days, resetAt };
+  }
+  // JSON aux clés triées, pour comparer deux progressions (la base réordonne les clés).
+  const canon = v => JSON.stringify(v, (k, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => { o[key] = x[key]; return o; }, {}) : x);
+
+  async function sync() {
+    if (!auth) return;
     if (cloud.busy) { cloud.again = true; return; }
-    cloud.busy = true;
+    cloud.busy = true; clearTimeout(cloud.timer);
+    refreshAccount();
     try {
-      await cloud.ref.set({ json: JSON.stringify({ items: state.items, days: state.days }), updatedAt: Date.now() });
-      cloud.fails = 0;
+      const rows = await api('progress?select=data&user_id=eq.' + auth.id);
+      const remote = rows && rows.length ? rows[0].data : null;
+      const local = progressOf(state);
+      const merged = remote ? mergeProgress(local, remote) : local;
+      if (canon(merged) !== canon(local)) {
+        Object.assign(state, merged);
+        saveLocal();
+        if (view === 'home') renderHome();
+      }
+      if (!remote || canon(merged) !== canon(remote)) {
+        await api('progress', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: { user_id: auth.id, data: merged, updated_at: new Date().toISOString() } });
+      }
+      cloud.last = Date.now(); cloud.error = null;
     } catch (e) {
-      cloud.fails++;
-      if ((e && e.code) === 'unavailable' && cloud.fails < 3) { cloud.again = true; await new Promise(r => setTimeout(r, 1200 + Math.random() * 1200)); }
-      else { cloud.ref = null; setSyncNote(false); }
+      cloud.error = e instanceof CloudError ? e : new CloudError('bug');
     } finally {
       cloud.busy = false;
-      if (cloud.again && cloud.ref) { cloud.again = false; cloudPush(); }
+      if (cloud.again && auth) { cloud.again = false; sync(); }
+      else refreshAccount();
     }
   }
+  function syncSoon() { if (!auth) return; clearTimeout(cloud.timer); cloud.timer = setTimeout(sync, 1500); }
+
+  // Suivi : un compte parent lit la progression des élèves qui lui sont rattachés (table followers).
+  async function loadFollowed() {
+    if (!auth || cloud.following) return;
+    cloud.following = true;
+    try {
+      const links = await api('followers?select=student_id,student_name&order=student_name');
+      let rows = [];
+      if (links.length) rows = await api('progress?select=user_id,data,updated_at&user_id=in.(' + links.map(l => l.student_id).join(',') + ')');
+      cloud.followed = links.map(l => {
+        const r = rows.find(x => x.user_id === l.student_id);
+        return { id: l.student_id, name: l.student_name, data: r ? mergeProgress(r.data, {}) : null };
+      });
+      cloud.followError = null;
+    } catch (e) {
+      cloud.followError = e instanceof CloudError ? e : new CloudError('bug');
+    } finally {
+      cloud.following = false;
+    }
+    if (view === 'follow') render();
+    else refreshFollow();
+  }
+  function refreshCloud() { sync(); loadFollowed(); }
 
   // ---------- Répétition espacée ----------
   const rec = id => state.items[id] || null;
-  const stateClass = id => { const r = rec(id); if (!r) return ''; if (r.box >= 4) return 'l4'; if (r.last === false) return 'l1'; return 'l2'; };
   const levelOf = id => { const r = rec(id); return r ? r.box : 0; };
-  const isDue = (id, t) => { const r = rec(id); return !!(r && r.box > 0 && r.due <= t); };
+  const dueIn = (p, id, t) => { const r = p.items[id]; return !!(r && r.box > 0 && r.due <= t); };
+  const isDue = (id, t) => dueIn(state, id, t);
   function applyLeitner(id, ok) {
     const t = today();
     const r = rec(id) || { box: 0, due: t, ok: 0, ko: 0, t: 0 };
@@ -2401,8 +2531,11 @@ if (typeof module !== 'undefined') module.exports = BANK;
     r.t = Date.now();
     state.items[id] = r;
     const d = state.days[t] || { n: 0, ok: 0, done: false };
-    d.n++; if (ok) d.ok++;
-    state.days[t] = d;
+    d.by = dayCounts(d);
+    const c = d.by[DEVICE] || [0, 0];
+    c[0]++; if (ok) c[1]++;
+    d.by[DEVICE] = c;
+    state.days[t] = sumDay(d);
     commit();
   }
   const byPriority = (a, b) => (levelOf(a.id) - levelOf(b.id)) || (rec(a.id).due < rec(b.id).due ? -1 : rec(a.id).due > rec(b.id).due ? 1 : 0) || (ORDER[a.id] - ORDER[b.id]);
@@ -2451,12 +2584,24 @@ if (typeof module !== 'undefined') module.exports = BANK;
     return limitCode(pool, 2).slice(0, 10);
   }
   const minutes = list => Math.max(1, Math.round(list.reduce((s, it) => s + COST[it.type], 0)));
-  function isActive(d) { const r = state.days[d]; return !!(r && (r.done || r.n >= 5)); }
-  function streak() {
+  // Les statistiques prennent la progression à afficher : la sienne (state) ou celle d'un élève suivi.
+  function isActive(p, d) { const r = p.days[d]; return !!(r && (r.done || r.n >= 5)); }
+  function streak(p) {
     let d = today(), n = 0;
-    if (!isActive(d)) d = addDays(d, -1);
-    while (isActive(d)) { n++; d = addDays(d, -1); }
+    if (!isActive(p, d)) d = addDays(d, -1);
+    while (isActive(p, d)) { n++; d = addDays(d, -1); }
     return n;
+  }
+  const isMastered = (p, id) => !!(p.items[id] && p.items[id].box >= 4);
+  const stateClass = (p, id) => { const r = p.items[id]; if (!r) return ''; if (r.box >= 4) return 'l4'; if (r.last === false) return 'l1'; return 'l2'; };
+  const lastActive = p => Object.keys(p.days).filter(d => p.days[d].n > 0).sort().pop() || null;
+  function relDay(d) {
+    const n = dayNumber(today()) - dayNumber(d);
+    if (n === 0) return "aujourd'hui";
+    if (n === 1) return 'hier';
+    if (n < 7) return 'il y a ' + n + ' jours';
+    const x = parse(d);
+    return 'le ' + x.getDate() + ' ' + MONTHS[x.getMonth()];
   }
 
   // ---------- Utilitaires d'affichage ----------
@@ -2563,6 +2708,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
   const hero = document.getElementById('hero');
   let view = 'home';
   let lastSummary = null;
+  let followId = null;
   let currentEditor = null;
   window.addEventListener('resize', () => { if (currentEditor) currentEditor.refresh(); });
 
@@ -2570,6 +2716,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
     currentEditor = null;
     if (view === 'session' && state.session) renderSession();
     else if (view === 'summary' && lastSummary) renderSummary();
+    else if (view === 'follow' && auth) renderFollow();
     else { view = 'home'; renderHome(); }
   }
 
@@ -2631,55 +2778,67 @@ if (typeof module !== 'undefined') module.exports = BANK;
         el('p', { class: 'facts', text: 'Toutes les questions vues sont à jour et tout le programme a été découvert.' }),
         el('div', { class: 'actions' }, el('button', { type: 'button', class: 'btn big', text: "S'entraîner quand même", onclick: () => startSession('free') })));
     }
+    app.append(followSection());
     app.append(el('section', { class: 'row block' },
       el('div', { class: 'margin-note', html: now.getDate() + ' ' + MONTHS[now.getMonth()] + '<small>' + DAYS[now.getDay()] + '</small>' }),
       el('div', { class: 'body' }, card)));
 
-    // Régularité
+    app.append(el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' }, el('h2', { text: 'Régularité' }), ...regularity(state))));
+    app.append(el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' }, el('h2', { text: 'Par thème' }), ...themeList(state, true))));
+    app.append(accountSection());
+
+    app.append(el('section', { class: 'row block howto' }, el('div'), el('div', { class: 'body' },
+      el('h2', { text: 'Comment ça marche' }),
+      el('p', { text: "Une bonne réponse repousse la question : elle revient 1, 2, 4, 8 puis 16 jours plus tard. Une erreur la fait revenir dès le lendemain, et une seconde fois en fin de séance." }),
+      el('p', { text: "Chaque séance du jour mélange les questions à revoir et de 2 à 8 nouvelles selon ce qu'il reste à revoir, pour 15 à 20 minutes. Le bouton S'entraîner d'un thème permet d'aller plus loin quand on veut." }),
+      el('p', { text: "Les exercices de code se font dans la page : le programme s'exécute sur place et des tests vérifient qu'il fait ce qui est demandé. Voir la solution ou passer compte comme une erreur, pour que l'exercice revienne." }))));
+  }
+
+  function regularity(p) {
+    const t = today(), now = parse(t);
     const cal = el('div', { class: 'cal', role: 'img', 'aria-label': 'Jours de révision des trois dernières semaines' });
     ['L', 'M', 'M', 'J', 'V', 'S', 'D'].forEach(d => cal.append(el('span', { class: 'dow', text: d })));
     const dow = (now.getDay() + 6) % 7;
     const start = addDays(t, -dow - 14);
     for (let i = 0; i < 21; i++) {
       const d = addDays(start, i);
-      const r = state.days[d];
+      const r = p.days[d];
       const cls = ['day'];
       if (d > t) cls.push('future');
-      else if (isActive(d)) cls.push('on');
+      else if (isActive(p, d)) cls.push('on');
       else if (r && r.n > 0) cls.push('part');
       if (d === t) cls.push('is-today');
       cal.append(el('span', { class: cls.join(' '), title: d, text: String(parse(d).getDate()) }));
     }
     let n = 0, ok = 0;
-    for (const d in state.days) { n += state.days[d].n || 0; ok += state.days[d].ok || 0; }
-    const mastered = ITEMS.filter(it => levelOf(it.id) >= 4).length;
-    const st = streak();
-    app.append(el('section', { class: 'row block' }, el('div'),
-      el('div', { class: 'body' },
-        el('h2', { text: 'Régularité' }),
-        cal,
-        el('div', { class: 'stats' },
-          el('div', { class: 'stat' }, el('strong', { text: String(st) }), el('span', { text: st > 1 ? "jours d'affilée" : "jour d'affilée" })),
-          el('div', { class: 'stat' }, el('strong', { text: String(n) }), el('span', { text: n > 1 ? 'réponses données' : 'réponse donnée' })),
-          el('div', { class: 'stat' }, el('strong', { text: n ? Math.round(100 * ok / n) + ' %' : '-' }), el('span', { text: 'de réussite du premier coup' })),
-          el('div', { class: 'stat' }, el('strong', { text: mastered + ' / ' + ITEMS.length }), el('span', { text: 'questions maîtrisées' }))),
-        el('p', { class: 'tip', text: 'Une case pleine : séance du jour terminée ou au moins 5 réponses ce jour-là.' }))));
+    for (const d in p.days) { n += p.days[d].n || 0; ok += p.days[d].ok || 0; }
+    const mastered = ITEMS.filter(it => isMastered(p, it.id)).length;
+    const st = streak(p);
+    return [cal,
+      el('div', { class: 'stats' },
+        el('div', { class: 'stat' }, el('strong', { text: String(st) }), el('span', { text: st > 1 ? "jours d'affilée" : "jour d'affilée" })),
+        el('div', { class: 'stat' }, el('strong', { text: String(n) }), el('span', { text: n > 1 ? 'réponses données' : 'réponse donnée' })),
+        el('div', { class: 'stat' }, el('strong', { text: n ? Math.round(100 * ok / n) + ' %' : '-' }), el('span', { text: 'de réussite du premier coup' })),
+        el('div', { class: 'stat' }, el('strong', { text: mastered + ' / ' + ITEMS.length }), el('span', { text: 'questions maîtrisées' }))),
+      el('p', { class: 'tip', text: 'Une case pleine : séance du jour terminée ou au moins 5 réponses ce jour-là.' })];
+  }
 
-    // Thèmes
+  function themeList(p, practice) {
+    const t = today();
     const list = el('div', { class: 'themes' });
     for (const th of THEMES) {
       const items = ITEMS.filter(it => it.theme === th.id);
-      const m = items.filter(it => levelOf(it.id) >= 4).length;
-      const due = items.filter(it => isDue(it.id, t)).length;
-      const fresh = items.filter(it => !rec(it.id)).length;
+      const m = items.filter(it => isMastered(p, it.id)).length;
+      const due = items.filter(it => dueIn(p, it.id, t)).length;
+      const fresh = items.filter(it => !p.items[it.id]).length;
       const mini = el('div', { class: 'mini', 'aria-hidden': 'true' });
-      for (const it of items) { mini.append(el('i', { class: 'sq ' + stateClass(it.id) })); }
+      for (const it of items) { mini.append(el('i', { class: 'sq ' + stateClass(p, it.id) })); }
       const counts = [plural(m, 'maîtrisée', 'maîtrisées') + ' sur ' + items.length];
       if (due) counts.push(due + " à revoir aujourd'hui");
       if (fresh) counts.push(plural(fresh, 'jamais vue', 'jamais vues'));
       list.append(el('div', { class: 'theme-row' },
         el('h3', { text: th.name }),
-        el('button', { type: 'button', class: 'btn', text: "S'entraîner", 'aria-label': "S'entraîner sur " + th.name, onclick: () => startSession('theme', th.id) }),
+        practice ? el('button', { type: 'button', class: 'btn', text: "S'entraîner", 'aria-label': "S'entraîner sur " + th.name, onclick: () => startSession('theme', th.id) }) : null,
         el('div', { class: 'counts', text: counts.join(', ') }),
         mini));
     }
@@ -2688,13 +2847,112 @@ if (typeof module !== 'undefined') module.exports = BANK;
       el('span', null, el('i', { class: 'sq l1' }), 'À revoir'),
       el('span', null, el('i', { class: 'sq l2' }), 'En cours'),
       el('span', null, el('i', { class: 'sq l4' }), 'Maîtrisée'));
-    app.append(el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' }, el('h2', { text: 'Par thème' }), list, legend)));
+    return [list, legend];
+  }
 
-    app.append(el('section', { class: 'row block howto' }, el('div'), el('div', { class: 'body' },
-      el('h2', { text: 'Comment ça marche' }),
-      el('p', { text: "Une bonne réponse repousse la question : elle revient 1, 2, 4, 8 puis 16 jours plus tard. Une erreur la fait revenir dès le lendemain, et une seconde fois en fin de séance." }),
-      el('p', { text: "Chaque séance du jour mélange les questions à revoir et de 2 à 8 nouvelles selon ce qu'il reste à revoir, pour 15 à 20 minutes. Le bouton S'entraîner d'un thème permet d'aller plus loin quand on veut." }),
-      el('p', { text: "Les exercices de code se font dans la page : le programme s'exécute sur place et des tests vérifient qu'il fait ce qui est demandé. Voir la solution ou passer compte comme une erreur, pour que l'exercice revienne." }))));
+  // ---------- Compte ----------
+  function syncText() {
+    if (cloud.busy) return 'Sauvegarde en cours…';
+    const e = cloud.error;
+    if (e && e.kind === 'offline') return 'Hors connexion : ta progression est gardée sur cet appareil et sera envoyée au retour du réseau.';
+    if (e) return 'La sauvegarde en ligne ne répond pas' + (e.status ? ' (erreur ' + e.status + ')' : '') + ' : ta progression reste sur cet appareil.';
+    if (cloud.last) return 'Progression sauvegardée à ' + new Date(cloud.last).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '.';
+    return '';
+  }
+  function loginErrorText(e) {
+    if (!(e instanceof CloudError)) return 'La connexion a échoué.';
+    if (e.kind === 'offline') return 'Pas de connexion internet : réessaie plus tard.';
+    const code = e.data && (e.data.error_code || e.data.error);
+    if (code === 'email_not_confirmed') return "Ce compte n'est pas encore confirmé.";
+    if (e.status === 400) return 'Email ou mot de passe incorrect.';
+    if (e.status === 429) return "Trop d'essais : attends quelques minutes avant de réessayer.";
+    return 'La connexion a échoué (erreur ' + e.status + ').';
+  }
+  function accountSection() {
+    const body = el('div', { class: 'body' }, el('h2', { text: 'Sauvegarde en ligne' }));
+    if (auth) {
+      body.append(
+        el('p', null, 'Connecté avec ', el('strong', { text: auth.email }), '.'),
+        el('p', { class: 'tip', text: syncText() }),
+        el('div', { class: 'actions' }, el('button', { type: 'button', class: 'btn link', text: 'Se déconnecter', onclick: () => { signOut(); render(); } })));
+    } else {
+      const email = el('input', { type: 'email', name: 'email', autocomplete: 'username', autocapitalize: 'off', spellcheck: 'false', required: true });
+      const password = el('input', { type: 'password', name: 'password', autocomplete: 'current-password', required: true });
+      const btn = el('button', { type: 'submit', class: 'btn primary', text: 'Se connecter' });
+      const msg = el('p', { class: 'login-error', 'aria-live': 'polite' });
+      const form = el('form', { class: 'login' }, el('label', null, 'Email', email), el('label', null, 'Mot de passe', password), btn, msg);
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        btn.disabled = true; btn.textContent = 'Connexion…'; msg.textContent = '';
+        try { await signIn(email.value.trim(), password.value); render(); }
+        catch (err) { msg.textContent = loginErrorText(err); btn.disabled = false; btn.textContent = 'Se connecter'; }
+      });
+      if (cloud.notice) body.append(el('p', { class: 'retry-note', text: cloud.notice }));
+      body.append(el('p', { text: 'Connecte-toi pour retrouver ta progression sur tous tes appareils. Sans compte, elle reste seulement sur cet appareil.' }), form);
+    }
+    return el('section', { class: 'row block', id: 'account' }, el('div'), body);
+  }
+  function refreshAccount() { const old = document.getElementById('account'); if (old) old.replaceWith(accountSection()); }
+
+  // ---------- Suivi d'un élève (compte parent) ----------
+  const emptyProgress = () => ({ items: {}, days: {}, resetAt: 0 });
+  function followSection() {
+    const list = cloud.followed;
+    if (!auth || !list || !list.length) return el('div', { id: 'follow' });
+    const body = el('div', { class: 'body' });
+    const t = today();
+    for (const f of list) {
+      const p = f.data || emptyProgress();
+      const d = p.days[t], last = lastActive(p);
+      let facts = d && d.done ? 'Séance du jour terminée.' : d && d.n ? plural(d.n, 'réponse', 'réponses') + " aujourd'hui, séance du jour pas encore terminée." : "Pas encore de révision aujourd'hui.";
+      if (!f.data) facts = 'Aucune progression enregistrée en ligne pour le moment.';
+      else if (last && last !== t) facts += ' Dernière révision : ' + relDay(last) + '.';
+      const st = streak(p), m = ITEMS.filter(it => isMastered(p, it.id)).length;
+      body.append(el('div', { class: 'today follow-card' },
+        el('h2', { text: 'Suivi de ' + f.name }),
+        el('p', { class: 'facts', text: facts }),
+        el('div', { class: 'stats' },
+          el('div', { class: 'stat' }, el('strong', { text: String(st) }), el('span', { text: st > 1 ? "jours d'affilée" : "jour d'affilée" })),
+          el('div', { class: 'stat' }, el('strong', { text: m + ' / ' + ITEMS.length }), el('span', { text: 'questions maîtrisées' }))),
+        el('div', { class: 'actions' }, el('button', { type: 'button', class: 'btn', text: 'Voir le détail', onclick: () => { followId = f.id; view = 'follow'; render(); window.scrollTo(0, 0); loadFollowed(); } }))));
+    }
+    if (cloud.followError) body.append(el('p', { class: 'tip', text: cloud.followError.kind === 'offline' ? 'Hors connexion : le suivi affiché date de la dernière mise à jour.' : 'Le suivi n\'a pas pu être mis à jour.' }));
+    return el('section', { class: 'row block', id: 'follow' }, el('div', { class: 'margin-note', text: 'Suivi' }), body);
+  }
+  function refreshFollow() { const old = document.getElementById('follow'); if (old && view === 'home') old.replaceWith(followSection()); }
+
+  function renderFollow() {
+    hero.hidden = true;
+    app.textContent = '';
+    const f = (cloud.followed || []).find(x => x.id === followId);
+    if (!f) { view = 'home'; renderHome(); return; }
+    const p = f.data || emptyProgress();
+    const back = () => { view = 'home'; render(); window.scrollTo(0, 0); };
+    app.append(el('div', { class: 'bar row' }, el('div'), el('div', { class: 'body' },
+      el('div', { class: 'bar-inner' },
+        el('span', { class: 'title', text: 'Suivi de ' + f.name }),
+        el('span', { class: 'spacer' }),
+        el('button', { type: 'button', class: 'btn link', text: 'Retour', onclick: back })))));
+    const last = lastActive(p);
+    app.append(el('section', { class: 'row block' }, el('div', { class: 'margin-note', text: 'Suivi' }), el('div', { class: 'body' },
+      el('h2', { text: 'Régularité' }),
+      el('p', { class: 'facts', text: last ? 'Dernière révision : ' + relDay(last) + '.' : "Pas encore de révision enregistrée." }),
+      ...regularity(p))));
+    app.append(el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' }, el('h2', { text: 'Par thème' }), ...themeList(p, false))));
+    const weak = ITEMS.filter(it => p.items[it.id] && p.items[it.id].last === false)
+      .sort((a, b) => (p.items[b.id].ko - p.items[a.id].ko) || (p.items[b.id].t - p.items[a.id].t));
+    const ul = el('ul', { class: 'recap' });
+    for (const it of weak.slice(0, 12)) {
+      const ko = p.items[it.id].ko;
+      ul.append(el('li', { class: 'ko' },
+        el('span', { class: 'mark', 'aria-hidden': 'true', text: '✗' }),
+        el('span', { class: 'th', text: THEME[it.theme].short }),
+        el('span', { text: itemLabel(it) + (ko > 1 ? ' (ratée ' + ko + ' fois)' : '') })));
+    }
+    app.append(el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' },
+      el('h2', { text: 'À retravailler' }),
+      weak.length ? el('p', { class: 'tip', text: 'Questions ratées à la dernière tentative, les plus souvent ratées en premier. Elles reviennent dans ses prochaines séances.' }) : el('p', { text: 'Aucune question ratée à la dernière tentative.' }),
+      weak.length ? ul : null)));
   }
 
   // ---------- Séance ----------
@@ -2790,7 +3048,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
         el('span', { class: 'th', text: THEME[it.theme].short }),
         el('span', { text: itemLabel(it) })));
     }
-    const st = streak();
+    const st = streak(state);
     app.append(el('section', { class: 'row block' },
       el('div', { class: 'margin-note', text: 'Bilan' }),
       el('div', { class: 'body' },
@@ -2944,15 +3202,24 @@ if (typeof module !== 'undefined') module.exports = BANK;
   // ---------- Démarrage ----------
   twoStep(document.getElementById('reset-all'), 'Remettre la progression à zéro', 'Confirmer : tout effacer', () => {
     state = blank();
-    saveLocal();
-    cloudPush();
+    state.resetAt = Date.now();
+    commit();
     lastSummary = null; view = 'home';
     render();
     window.scrollTo(0, 0);
   });
   if (validSession()) view = 'home';
   render();
-  cloudInit();
+  if (auth) refreshCloud();
+  window.addEventListener('online', refreshCloud);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshCloud(); });
+
+  // ---------- Appli installable ----------
+  const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  document.getElementById('install-tip').hidden = installed;
+  // Une fois installée, on demande au navigateur de ne jamais effacer la progression de lui-même.
+  if (installed && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
 </body>

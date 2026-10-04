@@ -1,0 +1,17 @@
+{
+  "name": "Révisions NSI",
+  "short_name": "NSI",
+  "description": "Un peu de NSI chaque jour, avec des questions qui reviennent au bon moment.",
+  "lang": "fr",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F6F8FC",
+  "theme_color": "#F6F8FC",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
