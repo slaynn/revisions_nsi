@@ -268,7 +268,8 @@ footer p { max-width: 40em; }
   <footer class="row">
     <div></div>
     <div class="body">
-      <p>Ta progression est enregistrée sur cet appareil, et aussi en ligne quand tu es connecté.</p>
+      <div id="account"></div>
+      <p>Ta progression est enregistrée sur cet appareil et en ligne : tu la retrouves en te connectant sur un autre appareil.</p>
       <p id="install-tip">Tu peux installer cette page comme une appli, utilisable même sans connexion. Sur iPhone : bouton Partager, puis «&nbsp;Sur l'écran d'accueil&nbsp;». Sur Android : menu ⋮, puis «&nbsp;Installer l'application&nbsp;». Sur iPhone, l'appli installée ne voit pas la progression faite dans Safari : connecte-toi dedans pour la retrouver.</p>
       <p>Le Python de cette page est une version simplifiée, suffisante pour ces exercices (fonctions, boucles, listes, chaînes, dictionnaires, tuples, module <code>math</code>). Pour aller plus loin, utilise Thonny ou Capytale.</p>
       <button type="button" class="btn link" id="reset-all">Remettre la progression à zéro</button>
@@ -2373,7 +2374,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
   let auth = null;
   try { auth = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { auth = null; }
   function setAuth(a) { auth = a; try { if (a) localStorage.setItem(AUTH_KEY, JSON.stringify(a)); else localStorage.removeItem(AUTH_KEY); } catch (e) { /* ignoré */ } }
-  const cloud = { busy: false, again: false, timer: null, last: 0, error: null, notice: '', followed: null, following: false, followError: null };
+  const cloud = { running: null, again: false, timer: null, last: 0, error: null, notice: '', logoutError: '', followed: null, following: false, followError: null };
 
   class CloudError extends Error {
     constructor(kind, status, data) { super(kind + (status ? ' ' + status : '')); this.kind = kind; this.status = status || 0; this.data = data || null; }
@@ -2430,6 +2431,22 @@ if (typeof module !== 'undefined') module.exports = BANK;
     clearTimeout(cloud.timer);
     if (a) request('/auth/v1/logout?scope=local', { method: 'POST' }, a.access).catch(() => {});
   }
+  async function logout() {
+    cloud.logoutError = '';
+    await sync();
+    if (!auth) return; // session expirée pendant l'envoi : la page de connexion est affichée, la progression locale gardée
+    if (cloud.error) {
+      cloud.logoutError = "Déconnexion impossible pour l'instant : ta progression doit d'abord être envoyée en ligne. Réessaie une fois connecté à internet.";
+      refreshAccount();
+      return;
+    }
+    signOut();
+    state = blank();
+    saveLocal();
+    lastSummary = null; view = 'home';
+    render();
+    window.scrollTo(0, 0);
+  }
 
   // Fusion de deux progressions : pour chaque question, la réponse la plus récente gagne ;
   // pour chaque jour, on garde le plus grand compteur de chaque appareil, puis on additionne.
@@ -2465,11 +2482,20 @@ if (typeof module !== 'undefined') module.exports = BANK;
   // JSON aux clés triées, pour comparer deux progressions (la base réordonne les clés).
   const canon = v => JSON.stringify(v, (k, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => { o[key] = x[key]; return o; }, {}) : x);
 
-  async function sync() {
-    if (!auth) return;
-    if (cloud.busy) { cloud.again = true; return; }
-    cloud.busy = true; clearTimeout(cloud.timer);
+  function sync() {
+    if (!auth) return Promise.resolve();
+    if (cloud.running) { cloud.again = true; return cloud.running; }
+    clearTimeout(cloud.timer);
+    cloud.running = syncOnce().finally(() => {
+      cloud.running = null;
+      if (!auth) { render(); return; }
+      if (cloud.again) { cloud.again = false; return sync(); }
+      refreshAccount();
+    });
     refreshAccount();
+    return cloud.running;
+  }
+  async function syncOnce() {
     try {
       const rows = await api('progress?select=data&user_id=eq.' + auth.id);
       const remote = rows && rows.length ? rows[0].data : null;
@@ -2483,13 +2509,9 @@ if (typeof module !== 'undefined') module.exports = BANK;
       if (!remote || canon(merged) !== canon(remote)) {
         await api('progress', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: { user_id: auth.id, data: merged, updated_at: new Date().toISOString() } });
       }
-      cloud.last = Date.now(); cloud.error = null;
+      cloud.last = Date.now(); cloud.error = null; cloud.logoutError = '';
     } catch (e) {
       cloud.error = e instanceof CloudError ? e : new CloudError('bug');
-    } finally {
-      cloud.busy = false;
-      if (cloud.again && auth) { cloud.again = false; sync(); }
-      else refreshAccount();
     }
   }
   function syncSoon() { if (!auth) return; clearTimeout(cloud.timer); cloud.timer = setTimeout(sync, 1500); }
@@ -2512,7 +2534,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
     } finally {
       cloud.following = false;
     }
-    if (view === 'follow') render();
+    if (!auth || view === 'follow') render();
     else refreshFollow();
   }
   function refreshCloud() { sync(); loadFollowed(); }
@@ -2706,6 +2728,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
   // ---------- Vues ----------
   const app = document.getElementById('app');
   const hero = document.getElementById('hero');
+  const footer = document.querySelector('footer');
   let view = 'home';
   let lastSummary = null;
   let followId = null;
@@ -2714,7 +2737,9 @@ if (typeof module !== 'undefined') module.exports = BANK;
 
   function render() {
     currentEditor = null;
-    if (view === 'session' && state.session) renderSession();
+    footer.hidden = !auth;
+    if (!auth) renderLogin();
+    else if (view === 'session' && state.session) renderSession();
     else if (view === 'summary' && lastSummary) renderSummary();
     else if (view === 'follow' && auth) renderFollow();
     else { view = 'home'; renderHome(); }
@@ -2785,7 +2810,6 @@ if (typeof module !== 'undefined') module.exports = BANK;
 
     app.append(el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' }, el('h2', { text: 'Régularité' }), ...regularity(state))));
     app.append(el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' }, el('h2', { text: 'Par thème' }), ...themeList(state, true))));
-    app.append(accountSection());
 
     app.append(el('section', { class: 'row block howto' }, el('div'), el('div', { class: 'body' },
       el('h2', { text: 'Comment ça marche' }),
@@ -2852,7 +2876,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
 
   // ---------- Compte ----------
   function syncText() {
-    if (cloud.busy) return 'Sauvegarde en cours…';
+    if (cloud.running) return 'Sauvegarde en cours…';
     const e = cloud.error;
     if (e && e.kind === 'offline') return 'Hors connexion : ta progression est gardée sur cet appareil et sera envoyée au retour du réseau.';
     if (e) return 'La sauvegarde en ligne ne répond pas' + (e.status ? ' (erreur ' + e.status + ')' : '') + ' : ta progression reste sur cet appareil.';
@@ -2868,31 +2892,38 @@ if (typeof module !== 'undefined') module.exports = BANK;
     if (e.status === 429) return "Trop d'essais : attends quelques minutes avant de réessayer.";
     return 'La connexion a échoué (erreur ' + e.status + ').';
   }
-  function accountSection() {
-    const body = el('div', { class: 'body' }, el('h2', { text: 'Sauvegarde en ligne' }));
-    if (auth) {
-      body.append(
-        el('p', null, 'Connecté avec ', el('strong', { text: auth.email }), '.'),
-        el('p', { class: 'tip', text: syncText() }),
-        el('div', { class: 'actions' }, el('button', { type: 'button', class: 'btn link', text: 'Se déconnecter', onclick: () => { signOut(); render(); } })));
-    } else {
-      const email = el('input', { type: 'email', name: 'email', autocomplete: 'username', autocapitalize: 'off', spellcheck: 'false', required: true });
-      const password = el('input', { type: 'password', name: 'password', autocomplete: 'current-password', required: true });
-      const btn = el('button', { type: 'submit', class: 'btn primary', text: 'Se connecter' });
-      const msg = el('p', { class: 'login-error', 'aria-live': 'polite' });
-      const form = el('form', { class: 'login' }, el('label', null, 'Email', email), el('label', null, 'Mot de passe', password), btn, msg);
-      form.addEventListener('submit', async e => {
-        e.preventDefault();
-        btn.disabled = true; btn.textContent = 'Connexion…'; msg.textContent = '';
-        try { await signIn(email.value.trim(), password.value); render(); }
-        catch (err) { msg.textContent = loginErrorText(err); btn.disabled = false; btn.textContent = 'Se connecter'; }
-      });
-      if (cloud.notice) body.append(el('p', { class: 'retry-note', text: cloud.notice }));
-      body.append(el('p', { text: 'Connecte-toi pour retrouver ta progression sur tous tes appareils. Sans compte, elle reste seulement sur cet appareil.' }), form);
-    }
-    return el('section', { class: 'row block', id: 'account' }, el('div'), body);
+  function refreshAccount() {
+    const box = document.getElementById('account');
+    box.textContent = '';
+    if (!auth) return;
+    box.append(el('p', null, 'Connecté avec ', el('strong', { text: auth.email }), '. ' + syncText()));
+    if (cloud.logoutError) box.append(el('p', { class: 'login-error', text: cloud.logoutError }));
+    box.append(el('button', { type: 'button', class: 'btn link', text: 'Se déconnecter', onclick: logout }));
   }
-  function refreshAccount() { const old = document.getElementById('account'); if (old) old.replaceWith(accountSection()); }
+
+  // ---------- Connexion ----------
+  function renderLogin() {
+    hero.hidden = false;
+    app.textContent = '';
+    const email = el('input', { type: 'email', name: 'email', autocomplete: 'username', autocapitalize: 'off', spellcheck: 'false', required: true });
+    const password = el('input', { type: 'password', name: 'password', autocomplete: 'current-password', required: true });
+    const btn = el('button', { type: 'submit', class: 'btn primary big', text: 'Se connecter' });
+    const msg = el('p', { class: 'login-error', 'aria-live': 'polite' });
+    const form = el('form', { class: 'login' }, el('label', null, 'Email', email), el('label', null, 'Mot de passe', password), btn, msg);
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      btn.disabled = true; btn.textContent = 'Connexion…'; msg.textContent = '';
+      try { await signIn(email.value.trim(), password.value); render(); window.scrollTo(0, 0); }
+      catch (err) { msg.textContent = loginErrorText(err); btn.disabled = false; btn.textContent = 'Se connecter'; }
+    });
+    app.append(el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' },
+      el('div', { class: 'today' },
+        el('h2', { text: 'Connexion' }),
+        cloud.notice ? el('p', { class: 'retry-note', text: cloud.notice }) : null,
+        el('p', { class: 'facts', text: 'Connecte-toi pour retrouver ta progression, sur tous tes appareils.' }),
+        form,
+        el('p', { class: 'tip', text: "Il n'y a pas d'inscription : les comptes sont créés à la main." })))));
+  }
 
   // ---------- Suivi d'un élève (compte parent) ----------
   const emptyProgress = () => ({ items: {}, days: {}, resetAt: 0 });
