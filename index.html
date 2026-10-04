@@ -2443,9 +2443,8 @@ if (typeof module !== 'undefined') module.exports = BANK;
     signOut();
     state = blank();
     saveLocal();
-    lastSummary = null; view = 'home';
-    render();
-    window.scrollTo(0, 0);
+    lastSummary = null;
+    go('home', { replace: true });
   }
 
   // Fusion de deux progressions : pour chaque question, la réponse la plus récente gagne ;
@@ -2735,14 +2734,50 @@ if (typeof module !== 'undefined') module.exports = BANK;
   let currentEditor = null;
   window.addEventListener('resize', () => { if (currentEditor) currentEditor.refresh(); });
 
+  // ---------- Adresses ----------
+  // Chaque vue a son adresse (#/seance, #/bilan, #/suivi/<élève>), pour que le bouton retour
+  // et le rechargement de la page fonctionnent. GitHub Pages ne sait pas réécrire les chemins :
+  // on passe par le fragment (#), qui marche partout, même hors connexion.
+  // history.state.depth compte les vues ouvertes depuis l'accueil, pour savoir si « Retour »
+  // peut simplement revenir en arrière dans l'historique.
+  function urlFor(v) {
+    if (v === 'session') return '#/seance';
+    if (v === 'summary') return '#/bilan';
+    if (v === 'follow') return '#/suivi/' + encodeURIComponent(followId);
+    return location.pathname + location.search;
+  }
+  function readUrl() {
+    const [name, arg] = location.hash.replace(/^#\/?/, '').split('/');
+    if (name === 'seance') view = 'session';
+    else if (name === 'bilan') view = 'summary';
+    else if (name === 'suivi' && arg) { view = 'follow'; followId = decodeURIComponent(arg); }
+    else view = 'home';
+  }
+  const depth = () => (history.state && history.state.depth) || 0;
+  function go(v, opts = {}) {
+    view = v;
+    if (opts.replace) history.replaceState({ depth: depth() }, '', urlFor(v));
+    else history.pushState({ depth: depth() + 1 }, '', urlFor(v));
+    render();
+    window.scrollTo(0, 0);
+  }
+  function goHome() {
+    if (depth() > 0) history.back();
+    else go('home', { replace: true });
+  }
+  window.addEventListener('popstate', () => { readUrl(); render(); });
+
   function render() {
     currentEditor = null;
     footer.hidden = !auth;
-    if (!auth) renderLogin();
-    else if (view === 'session' && state.session) renderSession();
+    if (!auth) { renderLogin(); return; }
+    if (view === 'session' && state.session) renderSession();
     else if (view === 'summary' && lastSummary) renderSummary();
-    else if (view === 'follow' && auth) renderFollow();
+    else if (view === 'follow') renderFollow();
     else { view = 'home'; renderHome(); }
+    // La vue demandée n'existe plus (séance finie, bilan perdu au rechargement...) : on corrige l'adresse.
+    const url = new URL(urlFor(view), location.href).href;
+    if (url !== location.href) history.replaceState({ depth: depth() }, '', url);
   }
 
   function validSession() {
@@ -2757,9 +2792,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
     if (!list.length) return;
     state.session = { mode, theme: themeId || null, date: today(), queue: list.map(i => ({ id: i.id })), idx: 0 };
     saveLocal();
-    view = 'session';
-    render();
-    window.scrollTo(0, 0);
+    go('session', { replace: view === 'summary' });
   }
 
   function sessionTitle(s) { return s.mode === 'daily' ? 'Séance du jour' : s.mode === 'theme' ? THEME[s.theme].name : 'Entraînement libre'; }
@@ -2782,7 +2815,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
         el('h2', { text: sessionTitle(s) + ' en cours' }),
         el('p', { class: 'facts', html: 'Tu en es à la question <strong>' + (s.idx + 1) + '</strong> sur ' + s.queue.length + '.' }),
         el('div', { class: 'actions' },
-          el('button', { type: 'button', class: 'btn primary big', text: 'Reprendre', onclick: () => { view = 'session'; render(); window.scrollTo(0, 0); } }),
+          el('button', { type: 'button', class: 'btn primary big', text: 'Reprendre', onclick: () => go('session') }),
           s.mode !== 'daily' ? el('button', { type: 'button', class: 'btn link', text: 'Abandonner cet entraînement', onclick: () => { state.session = null; saveLocal(); render(); } }) : null));
     } else if (dayRec && dayRec.done) {
       card = el('div', { class: 'today' },
@@ -2945,7 +2978,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
         el('div', { class: 'stats' },
           el('div', { class: 'stat' }, el('strong', { text: String(st) }), el('span', { text: st > 1 ? "jours d'affilée" : "jour d'affilée" })),
           el('div', { class: 'stat' }, el('strong', { text: m + ' / ' + ITEMS.length }), el('span', { text: 'questions maîtrisées' }))),
-        el('div', { class: 'actions' }, el('button', { type: 'button', class: 'btn', text: 'Voir le détail', onclick: () => { followId = f.id; view = 'follow'; render(); window.scrollTo(0, 0); loadFollowed(); } }))));
+        el('div', { class: 'actions' }, el('button', { type: 'button', class: 'btn', text: 'Voir le détail', onclick: () => { followId = f.id; go('follow'); loadFollowed(); } }))));
     }
     if (cloud.followError) body.append(el('p', { class: 'tip', text: cloud.followError.kind === 'offline' ? 'Hors connexion : le suivi affiché date de la dernière mise à jour.' : 'Le suivi n\'a pas pu être mis à jour.' }));
     return el('section', { class: 'row block', id: 'follow' }, el('div', { class: 'margin-note', text: 'Suivi' }), body);
@@ -2955,15 +2988,21 @@ if (typeof module !== 'undefined') module.exports = BANK;
   function renderFollow() {
     hero.hidden = true;
     app.textContent = '';
-    const f = (cloud.followed || []).find(x => x.id === followId);
+    const bar = title => el('div', { class: 'bar row' }, el('div'), el('div', { class: 'body' },
+      el('div', { class: 'bar-inner' },
+        el('span', { class: 'title', text: title }),
+        el('span', { class: 'spacer' }),
+        el('button', { type: 'button', class: 'btn link', text: 'Retour', onclick: goHome }))));
+    // Ouvert directement par son adresse : la liste des élèves suivis arrive après le démarrage.
+    if (!cloud.followed) {
+      app.append(bar('Suivi'), el('section', { class: 'row block' }, el('div'), el('div', { class: 'body' },
+        el('p', { text: cloud.followError ? 'Impossible de charger le suivi pour le moment (pas de connexion ?).' : 'Chargement du suivi…' }))));
+      return;
+    }
+    const f = cloud.followed.find(x => x.id === followId);
     if (!f) { view = 'home'; renderHome(); return; }
     const p = f.data || emptyProgress();
-    const back = () => { view = 'home'; render(); window.scrollTo(0, 0); };
-    app.append(el('div', { class: 'bar row' }, el('div'), el('div', { class: 'body' },
-      el('div', { class: 'bar-inner' },
-        el('span', { class: 'title', text: 'Suivi de ' + f.name }),
-        el('span', { class: 'spacer' }),
-        el('button', { type: 'button', class: 'btn link', text: 'Retour', onclick: back })))));
+    app.append(bar('Suivi de ' + f.name));
     const last = lastActive(p);
     app.append(el('section', { class: 'row block' }, el('div', { class: 'margin-note', text: 'Suivi' }), el('div', { class: 'body' },
       el('h2', { text: 'Régularité' }),
@@ -3002,7 +3041,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
         el('span', { class: 'title', text: sessionTitle(s) }),
         el('span', { class: 'count', text: 'Question ' + (s.idx + 1) + ' sur ' + s.queue.length }),
         el('span', { class: 'spacer' }),
-        el('button', { type: 'button', class: 'btn link', text: 'Quitter', onclick: () => { view = 'home'; render(); window.scrollTo(0, 0); } })),
+        el('button', { type: 'button', class: 'btn link', text: 'Quitter', onclick: goHome })),
       track)));
 
     const body = el('div', { class: 'body' });
@@ -3040,7 +3079,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
 
   function next() {
     const s = state.session;
-    if (!s) { view = 'home'; render(); return; }
+    if (!s) { go('home', { replace: true }); return; }
     s.idx++;
     if (s.idx >= s.queue.length) { finish(); return; }
     saveLocal();
@@ -3059,9 +3098,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
     }
     state.session = null;
     commit();
-    view = 'summary';
-    render();
-    window.scrollTo(0, 0);
+    go('summary', { replace: true });
   }
 
   function renderSummary() {
@@ -3089,7 +3126,7 @@ if (typeof module !== 'undefined') module.exports = BANK;
         recap,
         el('p', { html: 'Les questions ratées reviendront dès demain. Demain : <strong>' + plural(tomorrowDue, 'question', 'questions') + '</strong> à revoir.' }),
         el('div', { class: 'actions' },
-          el('button', { type: 'button', class: 'btn primary big', text: "Retour à l'accueil", onclick: () => { view = 'home'; lastSummary = null; render(); window.scrollTo(0, 0); } }),
+          el('button', { type: 'button', class: 'btn primary big', text: "Retour à l'accueil", onclick: () => { lastSummary = null; goHome(); } }),
           el('button', { type: 'button', class: 'btn big', text: '10 questions de plus', onclick: () => startSession('free') })))));
   }
 
@@ -3235,11 +3272,12 @@ if (typeof module !== 'undefined') module.exports = BANK;
     state = blank();
     state.resetAt = Date.now();
     commit();
-    lastSummary = null; view = 'home';
-    render();
-    window.scrollTo(0, 0);
+    lastSummary = null;
+    go('home', { replace: true });
   });
-  if (validSession()) view = 'home';
+  validSession(); // écarte une séance commencée un autre jour
+  if (!history.state || history.state.depth == null) history.replaceState({ depth: 0 }, '');
+  readUrl();
   render();
   if (auth) refreshCloud();
   window.addEventListener('online', refreshCloud);
