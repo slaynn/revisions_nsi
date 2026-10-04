@@ -45,10 +45,11 @@
 [hidden] { display: none !important; }
 html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 90px); }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 var(--f-body); -webkit-text-size-adjust: 100%; }
-/* Le code s'affiche exactement comme il est tapé : pas de ligatures (== != <= >= -> restent séparés) */
+/* Le code s'affiche exactement comme il est tapé : pas de ligatures (== != <= >= -> restent séparés).
+   !important car les raccourcis font: (pre.code, éditeur, champs) remettent ces réglages à zéro. */
 code, kbd, pre, textarea, .gutter, input.answer, .mono {
-  font-variant-ligatures: none;
-  font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+  font-variant-ligatures: none !important;
+  font-feature-settings: "liga" 0, "calt" 0, "dlig" 0 !important;
 }
 .page { position: relative; max-width: 900px; margin: 0 auto; padding: 0 max(20px, env(safe-area-inset-right, 0px)) 0 max(20px, env(safe-area-inset-left, 0px)); }
 .page::before {
@@ -233,6 +234,61 @@ input.answer:disabled { opacity: .8; }
 .follow-card + .follow-card { margin-top: 14px; }
 .follow-card .stats { margin-bottom: 14px; }
 
+/* Contenu des rappels de cours et de l'aide-mémoire */
+.doc ul, .doc ol { margin: 0 0 10px; padding-left: 1.3em; }
+.doc li { margin-bottom: 4px; }
+.doc pre.code.inline { margin: 6px 0 12px; }
+.doc .scroll { overflow-x: auto; margin: 6px 0 12px; }
+.doc table { border-collapse: collapse; font-size: .92rem; }
+.doc th, .doc td { border: 1px solid var(--line); padding: 5px 10px; text-align: left; vertical-align: top; }
+.doc th { background: var(--console); }
+.doc :not(pre) > code { white-space: nowrap; }
+.doc .warn { background: var(--note); border-radius: 6px; padding: 8px 12px; margin: 6px 0 12px; }
+
+/* Rappel de cours */
+.lesson { max-width: 44em; margin: 0 0 18px; background: var(--sheet); border: 1px solid var(--line); border-left: 4px solid var(--pen); border-radius: 0 8px 8px 0; }
+.lesson > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 11px 14px; cursor: pointer; font-weight: 700; list-style: none; }
+.lesson > summary::-webkit-details-marker { display: none; }
+.lesson > summary::before { content: "▸"; color: var(--pen); display: inline-block; transition: transform .15s; }
+.lesson[open] > summary::before { transform: rotate(90deg); }
+.lesson > summary:focus-visible { outline: 3px solid var(--margin); outline-offset: 2px; }
+.lesson .tag { font: 800 .72rem/1 var(--f-body); text-transform: uppercase; letter-spacing: .06em; color: var(--pen); }
+.lesson-body { padding: 0 16px 12px; font-size: .97rem; }
+.lesson-body .btn.link { padding: 0; min-height: 36px; }
+
+/* Aide-mémoire Python */
+body { padding-bottom: 76px; }
+.fab {
+  position: fixed; z-index: 20; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px 0 8px;
+  border: 0; border-radius: 999px; background: var(--pen); color: var(--pen-ink); font: 700 .95rem/1 var(--f-body);
+  box-shadow: 0 6px 18px rgba(14, 21, 38, .28); cursor: pointer;
+}
+.fab:hover { background: color-mix(in srgb, var(--pen) 88%, var(--ink)); }
+.fab:focus-visible { outline: 3px solid var(--margin); outline-offset: 3px; }
+.bar-help { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 12px 0 5px; }
+.bar-help .fab-icon { width: 28px; height: 28px; background: var(--pen); color: var(--pen-ink); }
+.fab-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--pen-ink); color: var(--pen); font: 600 .78rem/1 var(--f-code); }
+html:has(dialog[open]) { overflow: hidden; }
+.sheet { width: min(760px, calc(100vw - 24px)); max-width: none; height: min(860px, calc(100dvh - 24px)); max-height: none; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); }
+.sheet[open] { display: flex; flex-direction: column; }
+.sheet::backdrop { background: rgba(14, 21, 38, .5); }
+.sheet-head { flex: none; padding: 16px 20px 12px; border-bottom: 1px solid var(--line); }
+.sheet-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sheet-title h2 { flex: 1; margin: 0; }
+.sheet-search { width: 100%; font: 1rem/1.2 var(--f-body); color: var(--ink); min-height: 44px; padding: 0 12px; background: var(--sheet); border: 2px solid var(--line); border-radius: 6px; }
+.sheet-search:focus { outline: none; border-color: var(--pen); }
+.chips { display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; padding-bottom: 2px; }
+.chip { flex: none; font: 700 .82rem/1 var(--f-body); padding: 8px 11px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--sheet); color: var(--ink-2); cursor: pointer; }
+.chip:hover { border-color: var(--pen); color: var(--pen); }
+.chip:focus-visible { outline: 3px solid var(--margin); outline-offset: 1px; }
+.sheet-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px 20px 24px; }
+.sheet-card { padding: 16px 0 6px; border-bottom: 1px dotted var(--line); scroll-margin-top: 4px; }
+.sheet-card:last-of-type { border-bottom: 0; }
+.sheet-card h3 { margin: 0 0 8px; font-family: var(--f-head); font-weight: 700; font-size: 1.15rem; }
+.sheet-card.flash h3 { color: var(--pen); }
+.sheet-empty { color: var(--ink-2); padding-top: 16px; }
+
 footer { padding: 28px 0 48px; border-top: 1px dashed var(--line); color: var(--ink-2); font-size: .92rem; }
 footer p { max-width: 40em; }
 
@@ -252,6 +308,10 @@ footer p { max-width: 40em; }
   .recap li { grid-template-columns: 20px minmax(0, 1fr); }
   .recap .th, .recap li > :last-child { grid-column: 2; }
   .btn { padding: 0 13px; }
+  .lesson-body { padding: 0 12px 10px; }
+  .sheet { width: 100vw; height: 100dvh; margin: 0; border: 0; border-radius: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .sheet-head { padding: 12px 16px 10px; }
+  .sheet-body { padding: 0 16px 24px; }
 }
 </style>
 </head>
@@ -2308,10 +2368,293 @@ if (typeof module !== 'undefined') module.exports = BANK;
 
 </script>
 <script>
+// Rappels de cours (affichés au-dessus des questions) et aide-mémoire de syntaxe Python
+const COURS = (() => {
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Bloc de code : le texte est écrit tel quel, sans échapper les < et les >.
+  const pre = s => '<pre class="code grid-paper inline">' + esc(s) + '</pre>';
+  // Tableau : chaque cellule est du HTML.
+  const table = (head, rows) => '<div class="scroll"><table><thead><tr>' + head.map(h => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>'
+    + rows.map(r => '<tr>' + r.map(c => '<td>' + c + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+  const warn = h => '<p class="warn">' + h + '</p>';
+
+  // ---------------- Aide-mémoire Python ----------------
+  // keys : mots que l'élève peut taper dans la recherche, en plus du titre et du contenu.
+  const SYNTAX = [
+    { id: 'calc', chip: 'Calculs', title: 'Variables et calculs', keys: 'opérateurs affectation plus moins fois division quotient reste modulo puissance',
+      html: pre("x = 5        # x reçoit la valeur 5\nx = x + 1    # x vaut maintenant 6\nx += 1       # raccourci de x = x + 1 : x vaut 7")
+        + table(['Écriture', 'Calcul', 'Exemple'], [
+          ['<code>a + b</code>, <code>a - b</code>, <code>a * b</code>', 'addition, soustraction, multiplication', '<code>3 * 4</code> vaut 12'],
+          ['<code>a / b</code>', 'division décimale (toujours un float)', '<code>7 / 2</code> vaut 3.5'],
+          ['<code>a // b</code>', 'quotient entier', '<code>7 // 2</code> vaut 3'],
+          ['<code>a % b</code>', 'reste de la division', '<code>7 % 2</code> vaut 1'],
+          ['<code>a ** b</code>', 'puissance', '<code>2 ** 3</code> vaut 8'],
+        ])
+        + '<p><code>n % 2 == 0</code> est vrai quand n est pair. <code>n % 10</code> donne le dernier chiffre de n, <code>n // 10</code> l\'enlève.</p>' },
+    { id: 'compare', chip: 'Comparer', title: 'Comparer deux valeurs', keys: 'comparaison égal égalité différent inférieur supérieur plus petit plus grand',
+      html: table(['Écriture', 'Signification'], [
+          ['<code>a == b</code>', 'a est égal à b'],
+          ['<code>a != b</code>', 'a est différent de b'],
+          ['<code>a &lt; b</code>, <code>a &lt;= b</code>', 'strictement inférieur, inférieur ou égal'],
+          ['<code>a &gt; b</code>, <code>a &gt;= b</code>', 'strictement supérieur, supérieur ou égal'],
+          ['<code>x in liste</code>', 'x est un élément de la liste (marche aussi avec une chaîne)'],
+        ])
+        + '<p>Une comparaison vaut <code>True</code> ou <code>False</code>. On peut encadrer : <code>0 &lt;= note &lt;= 20</code>.</p>'
+        + warn('<code>=</code> range une valeur dans une variable, <code>==</code> compare deux valeurs. Dans un <code>if</code> ou un <code>while</code>, c\'est <code>==</code>.') },
+    { id: 'logic', chip: 'Et / ou / non', title: 'Et, ou, non : and, or, not', keys: 'et ou non and or not booléen booléens combiner plusieurs conditions vrai faux',
+      html: table(['Écriture', 'Vaut True quand...'], [
+          ['<code>a and b</code>', 'a et b sont vrais <strong>tous les deux</strong>'],
+          ['<code>a or b</code>', '<strong>au moins un</strong> des deux est vrai'],
+          ['<code>not a</code>', 'a est faux'],
+        ])
+        + pre("if age >= 12 and age < 18:\n    print('ado')\n\nif jour == 'samedi' or jour == 'dimanche':\n    print('week-end')\n\nif not (x in liste):\n    print('absent')")
+        + warn('Erreur fréquente : <code>x == 1 or 2</code> ne veut pas dire « x vaut 1 ou 2 ». Il faut répéter la comparaison : <code>x == 1 or x == 2</code>.')
+        + '<p>Priorité : <code>not</code> d\'abord, puis <code>and</code>, puis <code>or</code>. Dans le doute, mets des parenthèses : <code>(a or b) and c</code>.</p>' },
+    { id: 'if', chip: 'if', title: 'Conditions : if, elif, else', keys: 'si sinon sinon si test condition alternative',
+      html: pre("if note >= 10:\n    print('admis')\nelif note >= 8:\n    print('oral de rattrapage')\nelse:\n    print('refusé')")
+        + '<ul><li>Deux-points <code>:</code> à la fin des lignes <code>if</code>, <code>elif</code> et <code>else</code>.</li>'
+        + '<li>Le bloc qui suit est décalé de 4 espaces (touche Tab).</li>'
+        + '<li>Les conditions sont testées dans l\'ordre : seul le bloc de la première condition vraie s\'exécute. <code>elif</code> et <code>else</code> sont facultatifs.</li></ul>' },
+    { id: 'for', chip: 'for', title: 'Boucle for et range', keys: 'boucle pour répéter parcourir parcours indice indices',
+      html: table(['Écriture', 'Valeurs prises'], [
+          ['<code>range(5)</code>', '0, 1, 2, 3, 4'],
+          ['<code>range(2, 6)</code>', '2, 3, 4, 5'],
+          ['<code>range(0, 10, 3)</code>', '0, 3, 6, 9'],
+          ['<code>range(5, 0, -1)</code>', '5, 4, 3, 2, 1'],
+        ])
+        + '<p>La valeur de fin n\'est jamais atteinte.</p>'
+        + pre("for i in range(3):            # i vaut 0, puis 1, puis 2\n    print(i)\n\nfor lettre in 'nsi':          # chaque caractère de la chaîne\n    print(lettre)\n\nfor x in [4, 8, 15]:          # chaque élément de la liste\n    print(x)\n\nfor i in range(len(liste)):   # chaque indice de la liste\n    print(i, liste[i])") },
+    { id: 'while', chip: 'while', title: 'Boucle while', keys: 'tant que boucle répéter infinie arrêt',
+      html: pre("n = 10\nwhile n > 1:      # tant que la condition est vraie\n    n = n // 2\nprint(n)          # affiche 1")
+        + '<p>La condition est testée avant chaque tour. Le corps de la boucle doit faire évoluer la condition, sinon la boucle ne s\'arrête jamais.</p>'
+        + '<p>On choisit <code>for</code> quand on connaît le nombre de tours, <code>while</code> sinon.</p>' },
+    { id: 'def', chip: 'Fonctions', title: 'Fonctions : def et return', keys: 'fonction def return renvoyer paramètre paramètres argument appel appeler print none',
+      html: pre("def carre(x):        # x est le paramètre\n    return x * x     # renvoie le résultat\n\ny = carre(4)         # appel : y vaut 16\nprint(carre(3))      # affiche 9")
+        + warn('<code>return</code> renvoie une valeur et arrête la fonction tout de suite. <code>print</code> ne fait qu\'afficher : une fonction sans <code>return</code> renvoie <code>None</code>.')
+        + '<p>Fais attention à l\'indentation du <code>return</code> : placé dans la boucle, il l\'arrête dès le premier passage.</p>'
+        + pre("def contient(liste, x):\n    for e in liste:\n        if e == x:\n            return True    # trouvé : on s'arrête là\n    return False           # après la boucle : rien trouvé") },
+    { id: 'list', chip: 'Listes', title: 'Listes', keys: 'liste tableau crochets indice ajouter append len compréhension matrice',
+      html: pre("l = [4, 8, 15]\nl[0]          # 4 : le premier élément (indice 0)\nl[-1]         # 15 : le dernier\nlen(l)        # 3\nl.append(16)  # ajoute à la fin : [4, 8, 15, 16]\nl[1] = 9      # modifie : [4, 9, 15, 16]\nl[1:3]        # [9, 15] : indices 1 et 2\n15 in l       # True\nvide = []\nzeros = [0] * 5                      # [0, 0, 0, 0, 0]\ncarres = [x * x for x in range(4)]   # [0, 1, 4, 9]\npairs = [x for x in l if x % 2 == 0] # [4, 16]")
+        + '<p>Les indices vont de 0 à <code>len(l) - 1</code>. Fonctions utiles : <code>sum(l)</code>, <code>min(l)</code>, <code>max(l)</code>, <code>sorted(l)</code> (nouvelle liste triée).</p>'
+        + '<p>Liste de listes : avec <code>m = [[1, 2], [3, 4]]</code>, <code>m[1][0]</code> vaut 3 (ligne 1, colonne 0).</p>' },
+    { id: 'str', chip: 'Chaînes', title: 'Chaînes de caractères', keys: 'chaîne chaine texte str caractère lettre mot guillemets concaténer convertir split',
+      html: pre("mot = 'python'\nmot[0]           # 'p'\nmot[-1]          # 'n'\nmot[1:4]         # 'yth'\nlen(mot)         # 6\n'y' in mot       # True\nmot + '!'        # 'python!' (concaténation)\nstr(12) + 'h'    # '12h' : nombre converti en texte\nint('42') + 1    # 43 : texte converti en nombre\n'a b c'.split()  # ['a', 'b', 'c']\nmot.upper()      # 'PYTHON'\nord('A')         # 65\nchr(66)          # 'B'")
+        + warn('Une chaîne n\'est pas modifiable : <code>mot[0] = \'P\'</code> provoque une erreur. On construit une nouvelle chaîne : <code>resultat = resultat + lettre</code>.') },
+    { id: 'dict', chip: 'Dictionnaires', title: 'Dictionnaires', keys: 'dictionnaire dict clé clés valeur valeurs accolades items',
+      html: pre("stock = {'pommes': 12, 'kiwis': 7}\nstock['pommes']          # 12\nstock['poires'] = 3      # ajoute une clé\nstock['kiwis'] += 1      # modifie une valeur : 8\n'kiwis' in stock         # True : la clé existe\nlen(stock)               # 3 clés\nvide = {}\n\nfor fruit in stock:              # parcourt les clés\n    print(fruit, stock[fruit])\nfor fruit, n in stock.items():   # parcourt clés et valeurs\n    print(fruit, n)")
+        + '<p>On accède à une valeur par sa clé, pas par un indice. Lire une clé absente provoque une KeyError : teste d\'abord avec <code>in</code>.</p>' },
+    { id: 'tuple', chip: 'Tuples', title: 'Tuples', keys: 'tuple parenthèses non modifiable couple plusieurs valeurs',
+      html: pre("p = (3, 5)\np[0]          # 3\nx, y = p      # x vaut 3, y vaut 5\na, b = b, a   # échange les valeurs de a et b")
+        + '<p>Un tuple se lit comme une liste, mais il n\'est pas modifiable. Une fonction peut renvoyer plusieurs valeurs : <code>return mini, maxi</code>.</p>' },
+    { id: 'print', chip: 'Affichage', title: 'Affichage et types', keys: 'print afficher type int float str bool conversion convertir',
+      html: pre("print('Score :', 15)     # Score : 15 (un espace entre les valeurs)\nprint(f'{n} points')     # f-string : la valeur de n est insérée\ntype(3)                  # int : entier\ntype(3.5)                # float : nombre à virgule\ntype('3')                # str : texte\ntype(True)               # bool : True ou False\nint('7'), float('2.5'), str(10)   # conversions")
+        + warn('On ne colle pas un texte et un nombre avec <code>+</code> : <code>\'âge : \' + 15</code> provoque une TypeError. Écris <code>\'âge : \' + str(15)</code> ou <code>print(\'âge :\', 15)</code>.') },
+    { id: 'assert', chip: 'assert', title: 'assert, commentaires et import', keys: 'assert précondition test vérifier commentaire dièse import math sqrt racine',
+      html: pre("assert len(notes) > 0, 'liste vide'   # erreur si la condition est fausse\n# ceci est un commentaire : Python l'ignore\nfrom math import sqrt\nsqrt(16)                              # 4.0") },
+    { id: 'errors', chip: 'Erreurs', title: 'Erreurs fréquentes', keys: 'erreur bug syntaxerror indentationerror deux-points oubli décalage',
+      html: '<ul>'
+        + '<li>Oublier les deux-points <code>:</code> à la fin d\'une ligne <code>def</code>, <code>if</code>, <code>elif</code>, <code>else</code>, <code>for</code> ou <code>while</code>.</li>'
+        + '<li>Mal indenter : toutes les lignes d\'un bloc sont décalées de 4 espaces et alignées.</li>'
+        + '<li>Écrire <code>=</code> au lieu de <code>==</code> dans un test.</li>'
+        + '<li>Écrire <code>x == 1 or 2</code> au lieu de <code>x == 1 or x == 2</code>.</li>'
+        + '<li>Utiliser <code>print</code> au lieu de <code>return</code> dans une fonction.</li>'
+        + '<li>Placer le <code>return</code> dans la boucle alors qu\'il doit venir après.</li>'
+        + '<li>Dépasser la fin d\'une liste : le dernier élément est <code>l[len(l) - 1]</code>, pas <code>l[len(l)]</code>.</li>'
+        + '<li>Oublier les guillemets autour d\'un texte : <code>print(bonjour)</code> cherche une variable nommée bonjour.</li>'
+        + '</ul>' },
+  ];
+
+  // ---------------- Rappels de cours ----------------
+  // items : les questions de la banque qui s'appuient sur ce rappel.
+  // sheet : la fiche de l'aide-mémoire Python à proposer en lien.
+  const LESSONS = [
+    // Bases de Python
+    { id: 'py-var', title: 'Variables, types et calculs', sheet: 'calc', items: ['py-01', 'py-02', 'py-10'],
+      html: '<p>Une variable est un nom qui désigne une valeur. L\'affectation <code>x = x + 1</code> calcule d\'abord <code>x + 1</code> avec l\'ancienne valeur de x, puis range le résultat dans x.</p>'
+        + '<p>Les instructions s\'exécutent dans l\'ordre, ligne après ligne. Pour prédire un affichage, note la valeur de chaque variable après chaque ligne.</p>'
+        + '<p>Types de base : <code>int</code> (entier, 7), <code>float</code> (nombre à virgule, 3.5), <code>str</code> (texte, \'abc\'), <code>bool</code> (True ou False). Une comparaison porte sur les valeurs, pas sur les types.</p>'
+        + '<ul><li><code>/</code> donne toujours un float : <code>6 / 2</code> vaut <code>3.0</code>.</li>'
+        + '<li><code>//</code> donne le quotient entier et <code>%</code> le reste : <code>17 // 5</code> vaut 3 et <code>17 % 5</code> vaut 2.</li>'
+        + '<li><code>**</code> est la puissance : <code>3 ** 2</code> vaut 9.</li></ul>'
+        + '<p><code>print(a, b)</code> affiche les valeurs séparées par un espace.</p>' },
+    { id: 'py-cond', title: 'Conditions et booléens', sheet: 'logic', items: ['py-03', 'py-12'],
+      html: '<p>Une condition est une expression qui vaut <code>True</code> ou <code>False</code>, souvent une comparaison : <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>. « n est divisible par 3 » s\'écrit <code>n % 3 == 0</code>.</p>'
+        + '<p>On combine des conditions avec <code>and</code> (vrai si les deux sont vraies), <code>or</code> (vrai si au moins une est vraie) et <code>not</code> (l\'inverse). Les parenthèses fixent l\'ordre : <code>(a or b) and c</code>.</p>'
+        + pre("if temperature < 0:\n    etat = 'glace'\nelif temperature < 100:\n    etat = 'liquide'\nelse:\n    etat = 'vapeur'")
+        + '<p>Une fonction qui répond par vrai ou faux peut renvoyer directement une condition : <code>return n % 2 == 0</code>.</p>' },
+    { id: 'py-for', title: 'Boucle for', sheet: 'for', items: ['py-05', 'py-08', 'py-15', 'py-16'],
+      html: '<p>La boucle <code>for</code> répète un bloc pour chaque valeur d\'une séquence. On l\'utilise quand on connaît à l\'avance le nombre de tours.</p>'
+        + '<p><code>range(debut, fin, pas)</code> produit les entiers de debut (inclus) à fin (exclue), de pas en pas : <code>range(4)</code> donne 0, 1, 2, 3 ; <code>range(1, 4)</code> donne 1, 2, 3 ; <code>range(0, 10, 4)</code> donne 0, 4, 8.</p>'
+        + '<p>Deux schémas à connaître, accumuler et compter :</p>'
+        + pre("total = 0                      # somme de 1 à n\nfor k in range(1, n + 1):\n    total = total + k\n\ncompteur = 0                   # nombre de multiples de 3 entre 1 et n\nfor k in range(1, n + 1):\n    if k % 3 == 0:\n        compteur = compteur + 1") },
+    { id: 'py-while', title: 'Boucle while', sheet: 'while', items: ['py-04', 'py-09'],
+      html: '<p><code>while condition:</code> répète le bloc tant que la condition est vraie. Elle est testée avant chaque tour : si elle est fausse dès le départ, le bloc ne s\'exécute jamais.</p>'
+        + '<p>On l\'utilise quand on ne connaît pas le nombre de tours à l\'avance. Le corps de la boucle doit faire évoluer la condition, sinon la boucle ne s\'arrête jamais.</p>'
+        + pre("chiffres = 0          # nombre de chiffres de n (n > 0)\nwhile n > 0:\n    n = n // 10       # enlève le dernier chiffre\n    chiffres = chiffres + 1")
+        + '<p>Avec un entier, <code>n % 10</code> donne le dernier chiffre et <code>n // 10</code> le supprime. Pour prédire un affichage, fais un tableau avec une colonne par variable et une ligne par tour.</p>' },
+    { id: 'py-fn', title: 'Fonctions, return et assert', sheet: 'def', items: ['py-06', 'py-07', 'py-11', 'py-14'],
+      html: '<p>Une fonction regroupe des instructions sous un nom. Ses paramètres reçoivent les valeurs données à l\'appel ; <code>return</code> renvoie le résultat et arrête la fonction immédiatement.</p>'
+        + pre("def aire_rectangle(longueur, largeur):\n    assert longueur >= 0 and largeur >= 0, 'dimension négative'\n    return longueur * largeur\n\nprint(aire_rectangle(3, 4))   # 12")
+        + '<ul><li>Les variables créées dans une fonction sont <strong>locales</strong> : elles n\'existent pas en dehors, et modifier un paramètre ne change pas la variable passée à l\'appel.</li>'
+        + '<li>Une <strong>précondition</strong> est ce qui doit être vrai à l\'entrée de la fonction. On la vérifie avec <code>assert condition, \'message\'</code>, qui déclenche une AssertionError si la condition est fausse.</li>'
+        + '<li>Une fonction peut en appeler une autre : écris d\'abord les petites fonctions, puis celles qui s\'en servent.</li>'
+        + '<li>Un <code>return</code> dans une boucle arrête tout dès qu\'il est atteint : pratique pour répondre <code>False</code> dès qu\'on trouve un contre-exemple.</li></ul>' },
+    { id: 'str', title: 'Chaînes de caractères', sheet: 'str', items: ['py-13', 'py-17', 'tc-14'],
+      html: '<p>Une chaîne est une suite de caractères numérotés à partir de 0 : <code>mot[0]</code> est le premier, <code>mot[-1]</code> le dernier, et <code>mot[len(mot) - 1 - i]</code> le i-ème en partant de la fin (i commence à 0).</p>'
+        + '<p><code>mot[a:b]</code> prend les caractères d\'indices a à b - 1. <code>in</code> teste la présence d\'un caractère ou d\'un morceau : <code>\'th\' in \'python\'</code> vaut True.</p>'
+        + pre("mot = 'tableau'\nfor lettre in mot:          # parcours des caractères\n    print(lettre)\nfor i in range(len(mot)):   # parcours des indices\n    print(i, mot[i])")
+        + '<p>Une chaîne n\'est pas modifiable : on en construit une nouvelle avec <code>+</code>, par exemple <code>resultat = resultat + lettre</code>.</p>' },
+
+    // Représentation des données
+    { id: 'rep-bin', title: 'Binaire et hexadécimal', items: ['rep-01', 'rep-02', 'rep-03', 'rep-04', 'rep-05', 'rep-13', 'rep-14', 'rep-15', 'rep-18'],
+      html: '<p>En base 2, chaque chiffre (bit) vaut une puissance de 2, en partant de la droite : 1, 2, 4, 8, 16, 32, 64, 128... Ainsi <code>1101</code> vaut 8 + 4 + 1 = 13.</p>'
+        + '<p><strong>Décimal vers binaire</strong> : décompose en puissances de 2 (13 = 8 + 4 + 1, donc 1101), ou divise par 2 en notant les restes, puis lis les restes du dernier au premier.</p>'
+        + '<p><strong>Hexadécimal</strong> (base 16) : chiffres 0 à 9 puis A = 10, B = 11, C = 12, D = 13, E = 14, F = 15. Chaque position vaut une puissance de 16 : 1, 16, 256... Un chiffre hexadécimal correspond à 4 bits : <code>1011 0010</code> s\'écrit B2. En Python on écrit <code>0b1101</code> et <code>0xB2</code>.</p>'
+        + '<p>Sur n bits, on peut coder 2ⁿ valeurs différentes, de 0 à 2ⁿ - 1. Un octet compte 8 bits.</p>'
+        + '<p><strong>Addition</strong> : 0 + 1 = 1, 1 + 1 = 10 (on pose 0 et on retient 1), 1 + 1 + 1 = 11 (on pose 1 et on retient 1). On vérifie en convertissant en décimal.</p>' },
+    { id: 'rep-c2', title: 'Entiers relatifs : complément à deux', items: ['rep-06', 'rep-07', 'rep-08'],
+      html: '<p>Sur n bits, le complément à deux représente les entiers de -2ⁿ⁻¹ à 2ⁿ⁻¹ - 1 (sur 4 bits : de -8 à 7). Le bit de gauche, dit de poids fort, vaut 1 pour les nombres négatifs.</p>'
+        + '<p><strong>Coder -x</strong> : écris x en binaire sur n bits, inverse tous les bits, puis ajoute 1. Sur 4 bits, -3 : 0011, puis 1100, puis 1101.</p>'
+        + '<p><strong>Lire un nombre négatif</strong> (bit de poids fort à 1) : inverse les bits et ajoute 1 pour obtenir sa valeur sans le signe. 1101 donne 0010 puis 0011 = 3 : c\'est -3.</p>' },
+    { id: 'rep-float', title: 'Nombres à virgule', items: ['rep-09', 'rep-10'],
+      html: '<p>Après la virgule, les bits valent 1/2, 1/4, 1/8, 1/16... (2⁻¹, 2⁻², 2⁻³...). 0,101 en binaire vaut 0,5 + 0,125 = 0,625.</p>'
+        + '<p>Pour convertir une partie décimale, multiplie par 2 et note la partie entière (0 ou 1), puis recommence avec ce qui est après la virgule : 0,625 donne 1,25 (1), puis 0,5 (0), puis 1,0 (1), soit 0,101.</p>'
+        + '<p>Beaucoup de nombres, comme 0,1, n\'ont pas d\'écriture binaire finie : l\'ordinateur les arrondit (type <code>float</code>). Les calculs sur les flottants sont donc approchés, et on évite de tester leur égalité avec <code>==</code> : on vérifie plutôt que <code>abs(a - b) &lt; 1e-9</code>.</p>' },
+    { id: 'rep-bool', title: 'Booléens et portes logiques', sheet: 'logic', items: ['rep-11', 'rep-16', 'arch-03', 'arch-04'],
+      html: table(['a', 'b', 'not a', 'a and b', 'a or b', 'a xor b'], [
+          ['0', '0', '1', '0', '0', '0'],
+          ['0', '1', '1', '0', '1', '1'],
+          ['1', '0', '0', '0', '1', '1'],
+          ['1', '1', '0', '1', '1', '0'],
+        ])
+        + '<p>0 correspond à False et 1 à True. Priorité : <code>not</code>, puis <code>and</code>, puis <code>or</code> : <code>a or b and c</code> se lit <code>a or (b and c)</code>.</p>'
+        + '<p>XOR, le « ou exclusif », vaut 1 quand les deux entrées sont différentes. Les portes logiques réalisent ces opérations dans les circuits : un demi-additionneur additionne deux bits A et B, avec la somme S = A XOR B et la retenue R = A AND B.</p>' },
+    { id: 'rep-txt', title: 'Codage du texte', items: ['rep-12', 'rep-17'],
+      html: '<p>Chaque caractère est codé par un nombre. <strong>ASCII</strong> code 128 caractères (lettres sans accent, chiffres, ponctuation) : \'A\' vaut 65, \'B\' 66... et \'a\' vaut 97.</p>'
+        + '<p><strong>Unicode</strong> donne un numéro à chaque caractère de toutes les langues. <strong>UTF-8</strong> écrit ces numéros sur 1 à 4 octets : un seul octet pour les caractères ASCII, davantage pour les autres (lettres accentuées, symboles, emojis). Un texte lu avec le mauvais encodage affiche des caractères bizarres, comme « Ã© » au lieu de « é ».</p>'
+        + '<p>En Python, <code>ord(\'A\')</code> vaut 65 et <code>chr(65)</code> vaut \'A\'. Les majuscules se suivent : la position d\'une lettre dans l\'alphabet est <code>ord(c) - ord(\'A\')</code> (0 pour A, 25 pour Z). Pour repartir au début après Z, on prend le reste : <code>(position + decalage) % 26</code>.</p>' },
+
+    // Types construits
+    { id: 'tc-list', title: 'Listes', sheet: 'list', items: ['tc-01', 'tc-03', 'tc-04', 'tc-11', 'tc-12', 'tc-13'],
+      html: '<p>Une liste est une séquence modifiable : <code>l = [4, 8, 15]</code>. Les indices vont de 0 à <code>len(l) - 1</code>, <code>l[-1]</code> est le dernier élément et <code>l[a:b]</code> prend les indices a à b - 1.</p>'
+        + '<p><code>l.append(x)</code> ajoute x à la fin, <code>l.insert(i, x)</code> l\'insère à l\'indice i, <code>l.pop()</code> retire le dernier élément. <code>x in l</code> teste si x est dans la liste.</p>'
+        + '<p>Une <strong>liste par compréhension</strong> construit une liste en une ligne, en transformant ou en filtrant une séquence :</p>'
+        + pre("[expression for x in sequence]\n[expression for x in sequence if condition]\n\n[2 * x for x in range(4)]           # [0, 2, 4, 6]\n[m for m in mots if len(m) > 3]     # les mots de plus de 3 lettres")
+        + '<p><code>phrase.split()</code> découpe une chaîne en liste de mots.</p>' },
+    { id: 'tc-mat', title: 'Listes de listes (matrices)', sheet: 'list', items: ['tc-06', 'tc-07', 'tc-08'],
+      html: '<p>Une matrice est une liste de lignes : <code>m = [[1, 2, 3], [4, 5, 6]]</code>. <code>m[i][j]</code> est l\'élément de la ligne i et de la colonne j : <code>m[1][0]</code> vaut 4. Il y a <code>len(m)</code> lignes et <code>len(m[0])</code> colonnes.</p>'
+        + pre("for i in range(len(m)):           # chaque ligne\n    for j in range(len(m[0])):    # chaque colonne\n        print(m[i][j])")
+        + '<p>Une variable ne contient pas la liste elle-même mais une référence vers elle : après <code>b = a</code>, a et b désignent la même liste, et modifier <code>b[0]</code> modifie aussi <code>a[0]</code>. Pour une grille, crée donc chaque ligne séparément : <code>[[0] * p for _ in range(n)]</code>.</p>' },
+    { id: 'tc-tuple', title: 'Tuples', sheet: 'tuple', items: ['tc-02'],
+      html: '<p>Un tuple est une séquence <strong>non modifiable</strong> : <code>p = (3, \'NSI\')</code>. On le lit comme une liste (<code>p[0]</code>, <code>len(p)</code>, <code>for x in p</code>), mais on ne peut ni changer, ni ajouter, ni retirer un élément.</p>'
+        + '<p>On s\'en sert pour regrouper des valeurs qui vont ensemble, comme des coordonnées <code>(x, y)</code>, ou pour renvoyer plusieurs valeurs : <code>return mini, maxi</code>. <code>x, y = p</code> range chaque élément dans une variable.</p>' },
+    { id: 'tc-dict', title: 'Dictionnaires', sheet: 'dict', items: ['tc-05', 'tc-09', 'tc-10', 'tc-15'],
+      html: '<p>Un dictionnaire associe des <strong>clés</strong> à des <strong>valeurs</strong> : <code>age = {\'Alice\': 16, \'Bilal\': 17}</code>. On accède à une valeur par sa clé, <code>age[\'Alice\']</code>, et non par un indice.</p>'
+        + '<ul><li><code>d[cle] = valeur</code> crée la clé si elle n\'existe pas, sinon remplace sa valeur.</li>'
+        + '<li><code>cle in d</code> teste si une clé existe ; lire une clé absente provoque une KeyError.</li>'
+        + '<li><code>for cle in d</code> parcourt les clés ; <code>for cle, valeur in d.items()</code> parcourt les couples.</li>'
+        + '<li><code>len(d)</code> donne le nombre de clés.</li></ul>' },
+
+    // Données en tables
+    { id: 'tab-csv', title: 'Données en tables', sheet: 'dict', items: ['tab-01', 'tab-02', 'tab-03', 'tab-06'],
+      html: '<p>Une table est un ensemble de lignes (enregistrements) qui ont toutes les mêmes colonnes (descripteurs). Dans un fichier <strong>CSV</strong>, chaque ligne de texte est un enregistrement dont les valeurs sont séparées par des virgules ou des points-virgules ; la première ligne donne les noms des colonnes.</p>'
+        + '<p>En Python, on représente une table par une <strong>liste de dictionnaires</strong> : un dictionnaire par ligne, dont les clés sont les descripteurs.</p>'
+        + pre("films = [\n    {'titre': 'Up', 'annee': 2009, 'duree': 96},\n    {'titre': 'Coco', 'annee': 2017, 'duree': 105},\n]\nfilms[1]['titre']                                  # 'Coco'\n[f['titre'] for f in films if f['annee'] > 2010]   # ['Coco']\ndurees = [f['duree'] for f in films]               # [96, 105]")
+        + '<p><strong>Sélectionner</strong>, c\'est garder les lignes qui vérifient une condition. Pour un calcul (moyenne, maximum), extrais d\'abord la colonne utile dans une liste. Le module <code>csv</code> lit un fichier avec <code>csv.DictReader</code> ; les valeurs lues sont des chaînes, à convertir avec <code>int</code> si besoin.</p>' },
+    { id: 'tab-sort', title: 'Trier une table', items: ['tab-04', 'tab-07'],
+      html: '<p><code>sorted(liste)</code> renvoie une nouvelle liste triée, <code>liste.sort()</code> trie la liste elle-même. Pour trier des dictionnaires, on indique selon quoi trier avec le paramètre <code>key</code> : une fonction qui reçoit une ligne et renvoie la valeur qui sert au tri.</p>'
+        + pre("def duree(film):\n    return film['duree']\n\nsorted(films, key=duree)                               # du plus court au plus long\nsorted(films, key=lambda f: f['annee'], reverse=True)  # du plus récent au plus ancien")
+        + '<p><code>lambda f: f[\'annee\']</code> est une petite fonction écrite en une ligne. <code>reverse=True</code> trie dans l\'ordre décroissant.</p>' },
+    { id: 'tab-join', title: 'Fusionner deux tables', items: ['tab-05', 'tab-08'],
+      html: '<p>Fusionner deux tables (faire une jointure), c\'est réunir les lignes qui ont la même valeur pour un descripteur commun, par exemple un nom ou un identifiant. Les lignes sans correspondance dans l\'autre table sont écartées.</p>'
+        + '<p>Méthode simple : pour chaque ligne de la première table, parcourir toutes les lignes de la seconde (double boucle) ; quand les valeurs communes sont égales, construire une nouvelle ligne qui contient les colonnes des deux. <code>dict(ligne)</code> crée une copie du dictionnaire, pour ne pas modifier la table d\'origine.</p>'
+        + '<p>Coût : chaque ligne de la première table est comparée à chaque ligne de la seconde.</p>' },
+
+    // Algorithmique
+    { id: 'algo-parcours', title: 'Parcours séquentiel', items: ['algo-01', 'algo-02'],
+      html: '<p>Beaucoup d\'algorithmes parcourent une liste une seule fois, du début à la fin, en tenant à jour une variable : un compteur, une somme, ou le meilleur élément vu jusqu\'ici. Leur coût est <strong>linéaire</strong>, proportionnel à la longueur n de la liste (on note O(n)).</p>'
+        + pre("mini = liste[0]          # minimum d'une liste non vide\nfor x in liste:\n    if x < mini:\n        mini = x")
+        + '<p>Pour garder un <strong>indice</strong> plutôt qu\'une valeur, parcours les indices avec <code>for i in range(len(liste))</code> et compare <code>liste[i]</code> à l\'élément de l\'indice retenu. Avec une comparaison stricte, on garde la première occurrence en cas d\'égalité.</p>' },
+    { id: 'algo-tri', title: 'Tris par sélection et par insertion', items: ['algo-03', 'algo-04', 'algo-07', 'algo-13', 'algo-14'],
+      html: '<p><strong>Tri par sélection</strong> : pour chaque position i, on cherche le plus petit élément entre l\'indice i et la fin, puis on l\'échange avec l\'élément d\'indice i. Après ce tour, les éléments d\'indices 0 à i sont triés et à leur place définitive.</p>'
+        + '<p><strong>Tri par insertion</strong> : pour chaque i à partir de 1, on prend <code>liste[i]</code> et on l\'insère à sa place dans la partie gauche déjà triée, en décalant d\'un cran vers la droite les éléments plus grands, comme on range une carte dans sa main.</p>'
+        + pre("liste[i], liste[j] = liste[j], liste[i]   # échange deux éléments")
+        + '<p>Trier <strong>en place</strong> : la fonction modifie la liste reçue et ne renvoie rien. Ces deux tris utilisent deux boucles imbriquées : leur coût est <strong>quadratique</strong>, en O(n²) ; doubler la taille de la liste multiplie le temps par 4 environ.</p>'
+        + '<p>Un <strong>invariant</strong> est une propriété vraie au début de chaque tour de boucle ; il sert à prouver que l\'algorithme donne le bon résultat.</p>' },
+    { id: 'algo-dicho', title: 'Recherche dichotomique', items: ['algo-05', 'algo-08', 'algo-09'],
+      html: '<p>Dans une liste <strong>triée</strong>, on compare x à l\'élément du milieu : s\'il est égal, on a trouvé ; s\'il est plus grand que x, x ne peut être que dans la moitié gauche ; sinon, il est dans la moitié droite. On recommence sur la moitié qui reste.</p>'
+        + pre("debut, fin = 0, len(liste) - 1\nwhile debut <= fin:\n    milieu = (debut + fin) // 2\n    ...")
+        + '<p>À chaque tour, la zone de recherche est divisée par 2 : pour n éléments, il faut au plus environ log₂(n) tours, par exemple 10 tours pour 1 000 éléments car 2¹⁰ = 1 024. Le coût est <strong>logarithmique</strong>, bien plus faible que celui d\'un parcours séquentiel. La boucle se termine car l\'écart <code>fin - debut</code> diminue à chaque tour.</p>' },
+    { id: 'algo-glouton', title: 'Algorithmes gloutons', items: ['algo-06', 'algo-10'],
+      html: '<p>Un algorithme glouton construit une solution étape par étape, en faisant à chaque fois le choix qui semble le meilleur sur le moment, sans jamais revenir en arrière. Il est simple et rapide, mais ne donne pas toujours la meilleure solution.</p>'
+        + '<p><strong>Rendu de monnaie</strong> : on rend toujours la plus grande pièce qui ne dépasse pas la somme restante. Avec les euros (1, 2, 5, 10, 20, 50...), le résultat est optimal : 8 = 5 + 2 + 1. Avec d\'autres systèmes de pièces, le glouton peut utiliser plus de pièces que nécessaire.</p>'
+        + '<p>Autre exemple, le sac à dos : on prend d\'abord les objets qui ont le meilleur rapport valeur / poids, tant qu\'il reste de la place.</p>' },
+    { id: 'algo-knn', title: 'k plus proches voisins', items: ['algo-11', 'algo-12'],
+      html: '<p>L\'algorithme des k plus proches voisins prédit la classe d\'un nouvel élément à partir d\'exemples dont on connaît la classe :</p>'
+        + '<ol><li>calculer la distance entre le nouvel élément et chaque exemple ;</li><li>garder les k exemples les plus proches (en triant par distance) ;</li><li>répondre la classe la plus fréquente parmi ces k voisins.</li></ol>'
+        + '<p>Distance euclidienne entre (x₁, y₁) et (x₂, y₂) : √((x₁ - x₂)² + (y₁ - y₂)²), avec <code>from math import sqrt</code>. Le résultat dépend du choix de k ; on prend souvent k impair pour éviter les égalités.</p>' },
+
+    // Web
+    { id: 'web-html', title: 'HTML et CSS', items: ['web-01', 'web-07', 'web-08'],
+      html: '<p><strong>HTML</strong> décrit le contenu et la structure d\'une page avec des balises : <code>&lt;h1&gt;</code> titre, <code>&lt;p&gt;</code> paragraphe, <code>&lt;a href="page.html"&gt;</code> lien, <code>&lt;img src="chat.png"&gt;</code> image, <code>&lt;ul&gt;</code> et <code>&lt;li&gt;</code> liste, <code>&lt;form&gt;</code>, <code>&lt;input&gt;</code> et <code>&lt;button&gt;</code> formulaire.</p>'
+        + '<p>L\'attribut <code>id</code> identifie un seul élément de la page ; l\'attribut <code>class</code> peut être donné à plusieurs éléments pour les regrouper.</p>'
+        + '<p><strong>CSS</strong> décrit l\'apparence avec des règles <code>sélecteur { propriété: valeur; }</code>. Le sélecteur vise une balise, une classe (précédée d\'un point) ou un id (précédé d\'un dièse) :</p>'
+        + pre("p { color: gray; }                 /* tous les paragraphes */\n.important { font-weight: bold; }  /* les éléments de classe important */\n#menu { background: navy; }        /* l'élément d'id menu */") },
+    { id: 'web-form', title: 'Formulaires et HTTP', items: ['web-02', 'web-03', 'web-06', 'web-10'],
+      html: '<p>Le navigateur (le client) envoie une <strong>requête HTTP</strong> au serveur, qui répond par un code et un contenu. Codes à connaître : 200 succès, 404 ressource introuvable, 403 accès interdit, 500 erreur du serveur.</p>'
+        + '<p>Un formulaire <code>&lt;form action="page.php" method="..."&gt;</code> envoie au serveur la valeur de chaque champ, sous le nom donné par son attribut <code>name</code> :</p>'
+        + '<ul><li><strong>GET</strong> : les paramètres sont ajoutés à l\'URL après un <code>?</code>, sous la forme <code>nom=valeur</code>, séparés par des <code>&amp;</code>. Ils sont visibles et restent dans l\'historique.</li>'
+        + '<li><strong>POST</strong> : les paramètres voyagent dans le corps de la requête, pas dans l\'URL.</li></ul>'
+        + '<p>Ni GET ni POST ne chiffrent les données : seul <strong>HTTPS</strong>, la version chiffrée de HTTP, les protège pendant le trajet.</p>' },
+    { id: 'web-client', title: 'Côté client, côté serveur', items: ['web-04', 'web-05', 'web-09'],
+      html: '<p>Le <strong>serveur</strong> exécute des programmes, en PHP ou en Python par exemple : il fabrique la page HTML, souvent à partir d\'une base de données, puis l\'envoie. Le navigateur ne voit jamais ce code, seulement son résultat.</p>'
+        + '<p>Le <strong>client</strong>, c\'est le navigateur : il affiche le HTML et le CSS, et exécute le <strong>JavaScript</strong>, qui rend la page interactive sans la recharger.</p>'
+        + pre("const bouton = document.getElementById('valider');\nbouton.addEventListener('click', verifier);   // appelle verifier à chaque clic")
+        + '<p>Événements courants : <code>click</code> (clic), <code>input</code> (saisie dans un champ), <code>submit</code> (envoi d\'un formulaire), <code>keydown</code> (touche enfoncée).</p>' },
+
+    // Architecture, systèmes et réseaux
+    { id: 'arch-vn', title: 'Architecture de von Neumann', items: ['arch-01', 'arch-02', 'arch-05'],
+      html: '<p>Un ordinateur de type von Neumann comporte un <strong>processeur</strong>, une <strong>mémoire</strong> qui contient à la fois le programme et les données, et des <strong>entrées-sorties</strong>, reliés par des <strong>bus</strong>. Le processeur contient l\'unité arithmétique et logique (UAL), qui fait les calculs, l\'unité de commande, qui lit et décode les instructions, et des registres, de toutes petites mémoires très rapides.</p>'
+        + '<p>Le processeur répète sans fin : lire l\'instruction en mémoire, la décoder, l\'exécuter, passer à la suivante.</p>'
+        + '<p>En <strong>assembleur</strong>, chaque instruction est très simple et agit sur les registres :</p>'
+        + pre("MOV R0, #7        ; R0 ← 7\nADD R1, R0, R0    ; R1 ← R0 + R0, soit 14\nSUB R2, R1, R0    ; R2 ← R1 - R0, soit 7")
+        + '<p>Pour suivre un programme, note la valeur de chaque registre après chaque ligne.</p>' },
+    { id: 'arch-os', title: "Système d'exploitation et Linux", items: ['arch-06', 'arch-07', 'arch-08', 'arch-09', 'arch-16'],
+      html: '<p>Le système d\'exploitation (Linux, Windows, macOS, Android...) gère les ressources de la machine : il partage le processeur et la mémoire entre les programmes, et gère les fichiers, les périphériques et les utilisateurs.</p>'
+        + table(['Commande', 'Effet'], [
+          ['<code>pwd</code>', 'affiche le répertoire courant'],
+          ['<code>ls</code>, <code>ls -l</code>', 'liste le contenu du répertoire (avec <code>-l</code> : droits, propriétaire, taille)'],
+          ['<code>cd dossier</code>, <code>cd ..</code>', 'entre dans un répertoire, remonte d\'un niveau'],
+          ['<code>mkdir</code>, <code>cp</code>, <code>mv</code>, <code>rm</code>', 'crée un répertoire, copie, déplace ou renomme, supprime'],
+          ['<code>cat fichier</code>', 'affiche le contenu d\'un fichier'],
+          ['<code>chmod</code>', 'change les droits d\'un fichier'],
+        ])
+        + '<p><strong>Droits</strong> : <code>-rwxr-xr--</code> se lit par groupes de trois caractères après le premier : propriétaire (u), groupe (g), autres (o). r = lecture, w = écriture, x = exécution, - = droit absent.</p>'
+        + '<p>En notation octale, r vaut 4, w vaut 2 et x vaut 1, et on additionne dans chaque groupe : rwx = 7, r-x = 5, r-- = 4, donc <code>rwxr-xr--</code> s\'écrit 754. <code>chmod g+w f</code> ajoute l\'écriture au groupe, <code>chmod o-x f</code> retire l\'exécution aux autres, <code>chmod 640 f</code> fixe tous les droits d\'un coup.</p>' },
+    { id: 'arch-net', title: 'Réseaux', items: ['arch-10', 'arch-11', 'arch-12', 'arch-13', 'arch-14', 'arch-15'],
+      html: '<p>Une adresse IPv4 s\'écrit avec 4 octets : 192.168.1.37. Le suffixe <strong>/n</strong> indique que les n premiers bits désignent le réseau ; les bits restants désignent la machine dans ce réseau.</p>'
+        + '<ul><li><strong>Adresse du réseau</strong> : tous les bits machine à 0. Pour 10.0.5.20/24, c\'est 10.0.5.0.</li>'
+        + '<li><strong>Adresse de diffusion</strong> (broadcast) : tous les bits machine à 1. Pour 10.0.5.20/24, c\'est 10.0.5.255.</li>'
+        + '<li>Avec k bits machine, il y a 2ᵏ adresses, dont 2ᵏ - 2 utilisables par les machines.</li>'
+        + '<li>/24 correspond au masque 255.255.255.0 ; /25 coupe le dernier octet en blocs de 128 adresses, /26 en blocs de 64 (0 à 63, 64 à 127...).</li></ul>'
+        + '<p>Deux machines communiquent directement si elles ont la même adresse de réseau ; sinon, il faut passer par un <strong>routeur</strong>. Le <strong>DNS</strong> traduit un nom de domaine en adresse IP ; le <strong>DHCP</strong> attribue automatiquement une adresse aux machines.</p>'
+        + '<p><strong>Protocole du bit alterné</strong> : l\'émetteur envoie une trame portant le numéro 0 ou 1 et attend un accusé de réception ; s\'il ne le reçoit pas à temps, il renvoie la même trame. Le numéro alterne d\'une trame à la suivante, ce qui permet au récepteur de reconnaître et d\'ignorer une trame reçue deux fois.</p>' },
+  ];
+
+  const LESSON_OF = {};
+  for (const l of LESSONS) for (const id of l.items) LESSON_OF[id] = l;
+
+  return { SYNTAX, LESSONS, LESSON_OF };
+})();
+if (typeof module !== 'undefined') module.exports = COURS;
+
+</script>
+<script>
 (() => {
   'use strict';
   const { P, runTests, runProgram, answerOk } = ENGINE;
   const { THEMES, ITEMS } = BANK;
+  const { SYNTAX, LESSON_OF } = COURS;
   const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
   const THEME = Object.fromEntries(THEMES.map(t => [t.id, t]));
   const ORDER = Object.fromEntries(ITEMS.map((i, k) => [i.id, k]));
@@ -2734,6 +3077,62 @@ if (typeof module !== 'undefined') module.exports = BANK;
   let currentEditor = null;
   window.addEventListener('resize', () => { if (currentEditor) currentEditor.refresh(); });
 
+  // ---------- Aide-mémoire Python ----------
+  // Un bouton toujours visible ouvre la fenêtre, quelle que soit la vue : le code en cours
+  // reste en place derrière. L'ouverture ajoute une entrée à l'historique, pour que le geste
+  // « retour » du téléphone ferme la fenêtre au lieu de quitter la séance.
+  const normText = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const sheetSearch = el('input', { type: 'search', class: 'sheet-search', placeholder: 'Chercher : and, boucle, liste, return...', 'aria-label': "Chercher dans l'aide-mémoire", autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off' });
+  const sheetEmpty = el('p', { class: 'sheet-empty', hidden: true, text: 'Aucune fiche ne correspond. Essaie un autre mot, ou efface la recherche.' });
+  const sheetBody = el('div', { class: 'sheet-body' });
+  const sheetCards = SYNTAX.map(c => {
+    const card = el('section', { class: 'sheet-card doc', id: 'aide-' + c.id }, el('h3', { text: c.title }), el('div', { html: c.html }));
+    return { card, text: normText(c.title + ' ' + c.keys + ' ' + card.textContent) };
+  });
+  sheetCards.forEach(x => sheetBody.append(x.card));
+  sheetBody.append(sheetEmpty);
+  const sheet = el('dialog', { class: 'sheet', 'aria-labelledby': 'sheet-title' },
+    el('div', { class: 'sheet-head' },
+      el('div', { class: 'sheet-title' },
+        el('h2', { id: 'sheet-title', text: 'Aide-mémoire Python' }),
+        el('button', { type: 'button', class: 'btn', text: 'Fermer', onclick: () => sheet.close() })),
+      sheetSearch,
+      el('div', { class: 'chips' }, ...SYNTAX.map(c => el('button', { type: 'button', class: 'chip', text: c.chip, onclick: () => showCard(c.id) })))),
+    sheetBody);
+  const fab = el('button', { type: 'button', class: 'fab', hidden: true, 'aria-haspopup': 'dialog', onclick: () => openSheet() },
+    el('span', { class: 'fab-icon', 'aria-hidden': 'true', text: 'py' }), 'Aide Python');
+  document.body.append(sheet, fab);
+
+  function filterSheet() {
+    const words = normText(sheetSearch.value).split(/\s+/).filter(Boolean);
+    let shown = 0;
+    for (const x of sheetCards) { x.card.hidden = !words.every(w => x.text.includes(w)); if (!x.card.hidden) shown++; }
+    sheetEmpty.hidden = shown > 0;
+  }
+  function showCard(id) {
+    if (sheetSearch.value) { sheetSearch.value = ''; filterSheet(); }
+    const card = document.getElementById('aide-' + id);
+    if (!card) return;
+    sheetBody.scrollTop = card.offsetTop - sheetBody.offsetTop;
+    sheetCards.forEach(x => x.card.classList.toggle('flash', x.card === card));
+  }
+  function openSheet(id) {
+    if (!sheet.open) {
+      history.pushState({ depth: depth(), sheet: true }, '', location.href);
+      sheet.showModal();
+    }
+    if (id) showCard(id);
+  }
+  sheetSearch.addEventListener('input', () => { sheetBody.scrollTop = 0; filterSheet(); });
+  // Un clic à côté de la fenêtre (sur le fond assombri) la ferme.
+  sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });
+  // Fermée par le bouton, Échap ou le fond : on retire l'entrée ajoutée à l'historique.
+  let skipPop = false;
+  sheet.addEventListener('close', () => {
+    sheetCards.forEach(x => x.card.classList.remove('flash'));
+    if (history.state && history.state.sheet) { skipPop = true; history.back(); }
+  });
+
   // ---------- Adresses ----------
   // Chaque vue a son adresse (#/seance, #/bilan, #/suivi/<élève>), pour que le bouton retour
   // et le rechargement de la page fonctionnent. GitHub Pages ne sait pas réécrire les chemins :
@@ -2765,16 +3164,22 @@ if (typeof module !== 'undefined') module.exports = BANK;
     if (depth() > 0) history.back();
     else go('home', { replace: true });
   }
-  window.addEventListener('popstate', () => { readUrl(); render(); });
+  window.addEventListener('popstate', () => {
+    if (skipPop) { skipPop = false; return; }
+    if (sheet.open) { sheet.close(); return; }
+    readUrl(); render();
+  });
 
   function render() {
     currentEditor = null;
     footer.hidden = !auth;
-    if (!auth) { renderLogin(); return; }
+    if (!auth) { fab.hidden = true; renderLogin(); return; }
     if (view === 'session' && state.session) renderSession();
     else if (view === 'summary' && lastSummary) renderSummary();
     else if (view === 'follow') renderFollow();
     else { view = 'home'; renderHome(); }
+    // Pendant une séance, le bouton d'aide est dans la barre du haut : le bouton flottant cacherait les boutons de la question.
+    fab.hidden = view === 'session';
     // La vue demandée n'existe plus (séance finie, bilan perdu au rechargement...) : on corrige l'adresse.
     const url = new URL(urlFor(view), location.href).href;
     if (url !== location.href) history.replaceState({ depth: depth() }, '', url);
@@ -3041,12 +3446,15 @@ if (typeof module !== 'undefined') module.exports = BANK;
         el('span', { class: 'title', text: sessionTitle(s) }),
         el('span', { class: 'count', text: 'Question ' + (s.idx + 1) + ' sur ' + s.queue.length }),
         el('span', { class: 'spacer' }),
+        el('button', { type: 'button', class: 'btn bar-help', 'aria-haspopup': 'dialog', onclick: () => openSheet() },
+          el('span', { class: 'fab-icon', 'aria-hidden': 'true', text: 'py' }), 'Aide Python'),
         el('button', { type: 'button', class: 'btn link', text: 'Quitter', onclick: goHome })),
       track)));
 
     const body = el('div', { class: 'body' });
     const kind = { qcm: 'Question à choix multiple', input: 'Réponse courte', predict: "Prédire l'affichage", code: 'Exercice de code' }[item.type];
     body.append(el('div', { class: 'q-meta' }, el('span', { text: kind }), el('span', { class: 'stars', 'aria-label': 'Difficulté ' + item.level + ' sur 3', text: stars(item.level) })));
+    if (LESSON_OF[item.id]) body.append(lessonCard(LESSON_OF[item.id], entry, s));
     if (entry.retry) body.append(el('p', { class: 'retry-note', text: 'Deuxième essai : cette question a été ratée plus tôt dans la séance. Elle ne change pas ton suivi.' }));
     const nextRow = el('div', { class: 'next-row' });
     function showNext() {
@@ -3075,6 +3483,26 @@ if (typeof module !== 'undefined') module.exports = BANK;
     body.append(nextRow);
     if (entry.graded) showNext();
     app.append(el('section', { class: 'row qcard' }, el('div', { class: 'margin-note', html: THEME[item.theme].short }), body));
+  }
+
+  // Rappel de cours au-dessus de la question. Il s'ouvre tout seul la première fois que l'élève
+  // rencontre la question, si ce rappel n'a pas déjà été ouvert plus tôt dans la séance ;
+  // sinon il reste replié, à un clic.
+  function lessonCard(lesson, entry, s) {
+    if (entry.lessonOpen === undefined) {
+      if (!s.lessons) s.lessons = [];
+      entry.lessonOpen = !entry.retry && !state.items[entry.id] && !s.lessons.includes(lesson.id);
+      if (entry.lessonOpen) s.lessons.push(lesson.id);
+      saveLocal();
+    }
+    const card = SYNTAX.find(c => c.id === lesson.sheet);
+    const d = el('details', { class: 'lesson', open: entry.lessonOpen },
+      el('summary', null, el('span', { class: 'tag', text: 'Rappel de cours' }), el('span', { text: lesson.title })),
+      el('div', { class: 'lesson-body doc' },
+        el('div', { html: lesson.html }),
+        card ? el('button', { type: 'button', class: 'btn link', text: 'Aide-mémoire Python : ' + card.title, onclick: () => openSheet(card.id) }) : null));
+    d.addEventListener('toggle', () => { entry.lessonOpen = d.open; saveDraftSoon(); });
+    return d;
   }
 
   function next() {
